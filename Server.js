@@ -3,6 +3,7 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const stockRoutes = require("./routes/stockRoutes");
 const employeeRoutes = require("./routes/employeeRoutes");
+const userRoutes = require("./routes/userRoutes");
 
 dotenv.config();
 const app = express();
@@ -14,8 +15,8 @@ app.use(express.json());
 
 // API Routes
 app.use("/api", stockRoutes);
-app.use("/api", employeeRoutes); // Add employee routes
-
+app.use("/api", employeeRoutes);
+app.use("/api", userRoutes);
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
