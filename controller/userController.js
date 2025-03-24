@@ -26,7 +26,10 @@ const login = async (req, res) => {
 
   try {
     const result = await loginUser(username, password);
-    return res.status(result.user ? 200 : 401).json(result);
+    if (!result.success) {
+      return res.status(401).json(result);
+    }
+    return res.status(200).json(result);
   } catch (error) {
     return res.status(500).json({ message: "Error logging in", error: error.message });
   }
