@@ -43,10 +43,16 @@ const loginUser = async (username, password) => {
     const result = await pool
       .request()
       .input("username", sql.NVarChar, username)
-      .input("password", sql.NVarChar, password) // Direct comparison
+      .input("password", sql.NVarChar, password)
       .query(`
-        SELECT userID, username FROM Login 
-        WHERE username = @username AND password = @password;
+        SELECT 
+          L.userID, 
+          L.username, 
+          U.fullName, 
+          U.departmentType
+        FROM Login L
+        INNER JOIN Users_Info U ON L.userID = U.userID
+        WHERE L.username = @username AND L.password = @password;
       `);
 
     if (result.recordset.length === 0) {
@@ -59,5 +65,7 @@ const loginUser = async (username, password) => {
     throw error;
   }
 };
+
+
 
 module.exports = { registerEmployee, loginUser };
