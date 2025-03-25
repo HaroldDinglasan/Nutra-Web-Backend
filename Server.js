@@ -4,6 +4,7 @@ const dotenv = require("dotenv");
 const stockRoutes = require("./routes/stockRoutes");
 const employeeRoutes = require("./routes/employeeRoutes");
 const userRoutes = require("./routes/userRoutes");
+const prfDetailsRoutes = require("./routes/prfDetailsRoutes");
 
 dotenv.config();
 const app = express();
@@ -17,6 +18,9 @@ app.use(express.json());
 app.use("/api", stockRoutes);
 app.use("/api", employeeRoutes);
 app.use("/api", userRoutes);
+app.use("/api", prfDetailsRoutes);
+
+
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
