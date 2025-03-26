@@ -1,24 +1,40 @@
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db");
 
-const savePRFDetails = async (prfId, stockId, stockCode, stockName, uom, qty, dateNeeded, purpose, description) => {
+const savePRFDetails = async (prfDetailsArray) => {
     try {
         const pool = await poolPurchaseRequest;
-        const result = await pool.request()
-            .input("PrfId", sql.UniqueIdentifier, prfId)
-            .input("StockId", sql.UniqueIdentifier, stockId)
-            .input("StockCode", sql.VarChar(250), stockCode)
-            .input("StockName", sql.VarChar(sql.MAX), stockName)
-            .input("UOM", sql.VarChar(100), uom)
-            .input("QTY", sql.Int, qty)
-            .input("DateNeeded", sql.VarChar(250), dateNeeded)
-            .input("Purpose", sql.VarChar(250), purpose)
-            .input("Description", sql.VarChar(250), description)
-            .query(`
-                INSERT INTO PRFTABLE_DETAILS (PrfId, StockId, StockCode, StockName, UOM, QTY, DateNeeded, Purpose, Description) 
-                VALUES (@PrfId, @StockId, @StockCode, @StockName, @UOM, @QTY, @DateNeeded, @Purpose, @Description)
-            `);
+        const table = new sql.Table("PRFTABLE_DETAILS");
 
-        return result;
+        table.create = false;
+        table.columns.add("PrfId", sql.UniqueIdentifier, { nullable: false });
+        table.columns.add("StockId", sql.UniqueIdentifier, { nullable: false });
+        table.columns.add("StockCode", sql.VarChar(250), { nullable: false });
+        table.columns.add("StockName", sql.VarChar(sql.MAX), { nullable: false });
+        table.columns.add("UOM", sql.VarChar(100), { nullable: false });
+        table.columns.add("QTY", sql.Int, { nullable: false });
+        table.columns.add("DateNeeded", sql.VarChar(250), { nullable: false });
+        table.columns.add("Purpose", sql.VarChar(250), { nullable: false });
+        table.columns.add("Description", sql.VarChar(250), { nullable: true });
+
+        // Add multiple rows
+        prfDetailsArray.forEach((detail) => {
+            table.rows.add(
+                detail.prfId,
+                detail.stockId,
+                detail.stockCode,
+                detail.stockName,
+                detail.uom,
+                detail.qty,
+                detail.dateNeeded,
+                detail.purpose,
+                detail.description
+            );
+        });
+
+        const request = pool.request();
+        await request.bulk(table);
+
+        return { message: "Data saved successfully!" };
     } catch (error) {
         throw error;
     }
