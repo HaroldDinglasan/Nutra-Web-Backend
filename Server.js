@@ -5,6 +5,7 @@ const stockRoutes = require("./routes/stockRoutes");
 const employeeRoutes = require("./routes/employeeRoutes");
 const userRoutes = require("./routes/userRoutes");
 const prfDetailsRoutes = require("./routes/prfDetailsRoutes");
+const prfTableRoutes = require("./routes/prfTableRoutes");
 
 dotenv.config();
 const app = express();
@@ -19,6 +20,7 @@ app.use("/api", stockRoutes);
 app.use("/api", employeeRoutes);
 app.use("/api", userRoutes);
 app.use("/api", prfDetailsRoutes);
+app.use("/api", prfTableRoutes);
 
 
 app.listen(PORT, () => {
