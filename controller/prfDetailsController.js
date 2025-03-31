@@ -11,6 +11,7 @@ const savePRFDetailsController = async (req, res) => {
         await savePRFDetails(prfDetailsArray);
         res.status(201).json({ message: "Data saved successfully!" });
     } catch (error) {
+        console.error("Error saving PRF details:", error); // Log error
         res.status(500).json({ message: "Error saving data", error: error.message });
     }
 };
