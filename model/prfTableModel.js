@@ -28,9 +28,8 @@ const savePrfHeader = async (prfData) => {
       .input("prfDate", prfData.prfDate)
       .input("preparedBy", prfData.preparedBy) // This will be the fullName from Users_Info
       .query(`
-        INSERT INTO PRFTABLE (departmentId, prfNo, prfDate, preparedBy)
-        VALUES (@departmentId, @prfNo, @prfDate, @preparedBy);
-        SELECT SCOPE_IDENTITY() AS id;
+        INSERT INTO PRFTABLE (prfNo, prfDate, preparedBy)
+        VALUES (@prfNo, @prfDate, @preparedBy);
       `)
 
     return result.recordset[0].id
