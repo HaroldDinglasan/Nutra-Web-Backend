@@ -18,6 +18,7 @@ const savePRFDetails = async (prfDetailsArray) => {
 
         // Add multiple rows
         prfDetailsArray.forEach((detail) => {
+            console.log("Saving PRF details with PrfId:", detail.prfId); // ✅ Log PrfId
             table.rows.add(
                 detail.prfId,
                 detail.stockId,
