@@ -1,6 +1,6 @@
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db");
 
-// Fetch PRF List with StockName from PRFTABLE_DETAILS
+// Fetch PRF List with StockName, QTY, and UOM from PRFTABLE_DETAILS
 const getPrfList = async () => {
   try {
     const pool = await poolPurchaseRequest;
@@ -12,10 +12,12 @@ const getPrfList = async () => {
           p.prfNo, 
           p.preparedBy, 
           p.prfDate, 
-          d.StockName
+          d.StockName,
+          d.QTY as quantity,
+          d.UOM as unit
         FROM PRFTABLE p
         LEFT OUTER JOIN PRFTABLE_DETAILS d ON p.prfId = d.PrfId -- Ensuring the join is based on prfId
-        GROUP BY p.prfId, p.prfNo, p.preparedBy, p.prfDate, d.StockName
+        GROUP BY p.prfId, p.prfNo, p.preparedBy, p.prfDate, d.StockName, d.QTY, d.UOM
         ORDER BY p.prfDate DESC
       `);
 
