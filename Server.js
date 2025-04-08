@@ -8,6 +8,8 @@ const prfDetailsRoutes = require("./routes/prfDetailsRoutes");
 const prfTableRoutes = require("./routes/prfTableRoutes");
 const prfListRoutes = require("./routes/prfListRoutes");
 const searchPrfNoRoutes = require("./routes/searchPrfNoRoutes");
+const updatePrfDetailsRoutes = require("./routes/updatePrfDetailsRoutes");
+const cancelPrfRoutes = require("./routes/cancelPrfRoutes");
 
 dotenv.config();
 const app = express();
@@ -25,6 +27,8 @@ app.use("/api", prfDetailsRoutes);
 app.use("/api", prfTableRoutes);
 app.use("/api", prfListRoutes);
 app.use("/api", searchPrfNoRoutes);
+app.use("/api", updatePrfDetailsRoutes);
+app.use("/api", cancelPrfRoutes);
 
 
 app.listen(PORT, () => {
