@@ -17,7 +17,7 @@ const searchPrfByNumber = async (prfNo) => {
       .request()
       .input("prfNo", searchPrfNo)
       .query(`
-        SELECT prfId, prfNo, prfDate, preparedBy, departmentId
+        SELECT prfId, prfNo, prfDate, preparedBy, departmentId, isCancel AS prfIsCancel
         FROM PRFTABLE 
         WHERE prfNo = @prfNo
       `);
@@ -30,8 +30,9 @@ const searchPrfByNumber = async (prfNo) => {
 
     const prfHeader = headerResult.recordset[0];
     const prfId = prfHeader.prfId;
+    const isCancel = prfHeader.prfIsCancel;  // Grab the isCancel field to determine the cancel status
 
-    console.log(`Found PRF with ID: ${prfId}`);
+    console.log(`Found PRF with ID: ${prfId}, isCancel: ${isCancel}`);
 
     // Next, get the PRF details using the prfId
     const detailsResult = await pool
@@ -52,16 +53,17 @@ const searchPrfByNumber = async (prfNo) => {
 
     console.log(`Details query result count: ${detailsResult.recordset.length}`);
 
-    // Return both the header and details information
-    return {
-      found: true,
-      header: prfHeader,
-      details: detailsResult.recordset
-    };
-  } catch (error) {
-    console.error("Database error in searchPrfByNumber:", error);
-    throw new Error("Failed to search PRF: " + error.message);
-  }
+   // Return both the header and details information, including isCancel status
+   return {
+    found: true,
+    header: prfHeader,
+    details: detailsResult.recordset,
+    isCancel  // Include isCancel status in the return object
+  };
+} catch (error) {
+  console.error("Database error in searchPrfByNumber:", error);
+  throw new Error("Failed to search PRF: " + error.message);
+}
 };
 
 module.exports = { searchPrfByNumber };

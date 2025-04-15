@@ -1,6 +1,5 @@
 const { searchPrfByNumber } = require("../model/searchPrfNoModel");
 
-// Export the controller function
 const searchPrf = async (req, res) => {
   try {
     const { prfNo } = req.query;
@@ -10,7 +9,16 @@ const searchPrf = async (req, res) => {
     }
     
     const result = await searchPrfByNumber(prfNo);
-    res.json(result);
+
+    if (result.found) {
+      // If PRF is found, send back the result including the isCancel status
+      res.json({
+        ...result,
+        cancelButtonLabel: result.isCancel === 1 ? 'Marked as Cancelled' : 'Cancel'  // Conditionally set the button label
+      });
+    } else {
+      res.json(result);
+    }
   } catch (error) {
     console.error('Error searching PRF:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
