@@ -1,18 +1,24 @@
-const { sql, poolAVLI } = require("../connectionHelper/db");
+const { sql, poolAVLI } = require("../connectionHelper/db")
 
-
-// Get Stocks (Stock Code, BaseUOM, and Stock Name)
+// Get Stocks (Id, Stock Code, BaseUOM, and Stock Name)
 const getStocks = async () => {
   try {
-    const pool = await poolAVLI;
-    const result = await pool
-      .request()
-      .query("SELECT StockCode, BaseUOM, StockName FROM Stocks"); // Fetch StockCode, BaseUOM, & StockName
-    return result.recordset;
-  } catch (error) {
-    console.error("❌ Error fetching stocks:", error);
-    throw error;
-  }
-};
+    const pool = await poolAVLI
+    // query to include Id field
+    const result = await pool.request().query("SELECT Id, StockCode, BaseUOM, StockName FROM Stocks")
 
-module.exports = { getStocks };
+    console.log(`Fetched ${result.recordset.length} stocks with Id field`)
+
+    // sample record to verify Id is included
+    if (result.recordset.length > 0) {
+      console.log("Sample stock record:", result.recordset[0])
+    }
+
+    return result.recordset
+  } catch (error) {
+    console.error("❌ Error fetching stocks:", error)
+    throw error
+  }
+}
+
+module.exports = { getStocks }
