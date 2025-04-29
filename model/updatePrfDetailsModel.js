@@ -3,7 +3,37 @@ const { poolPurchaseRequest } = require("../connectionHelper/db")
 const updatePrfDetails = async (prfId, updatedDetails) => {
   try {
     const pool = await poolPurchaseRequest
+    
+    // Check if the PRF can be updated based on creation date
+    const prfDateResult = await pool
+      .request()
+      .input("prfId", prfId)
+      .query(`
+        SELECT prfDate
+        FROM PRFTABLE 
+        WHERE prfId = @prfId
+      `)
+    
+    if (prfDateResult.recordset.length === 0) {
+      return { success: false, message: "PRF not found" }
+    }
+    
+    // Get PRF creation date and format it to YYYY-MM-DD
+    const prfDate = new Date(prfDateResult.recordset[0].prfDate)
+    const prfDateFormatted = prfDate.toISOString().split('T')[0]
+    
+    // Get current date in YYYY-MM-DD format
+    const currentDate = new Date().toISOString().split('T')[0]
+    
+    // Check if current date is different from PRF creation date
+    if (currentDate !== prfDateFormatted) {
+      return { 
+        success: false, 
+        message: "PRF can only update on the same day it was created" 
+      }
+    }
 
+    // If dates match, proceed with the update
     // Update each detail individually
     for (const detail of updatedDetails) {
       // Check if the record exists
