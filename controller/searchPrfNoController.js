@@ -1,28 +1,41 @@
-const { searchPrfByNumber } = require("../model/searchPrfNoModel");
+const { searchPrfByNumber } = require("../model/searchPrfNoModel")
 
 const searchPrf = async (req, res) => {
   try {
-    const { prfNo } = req.query;
-    
+    const { prfNo } = req.query
+
     if (!prfNo) {
-      return res.status(400).json({ message: 'PRF number is required' });
+      return res.status(400).json({ message: "PRF number is required" })
     }
-    
-    const result = await searchPrfByNumber(prfNo);
+
+    const result = await searchPrfByNumber(prfNo)
 
     if (result.found) {
-      // If PRF is found, send back the result including the isCancel status
+      // If PRF is found, send back the result including all cancellation status information
+      const cancelCount = result.cancelCount || 0
+      const isFullyCancelled = result.isFullyCancelled || result.isCancel === 1 || cancelCount >= 3
+
+      // Determine the appropriate button label
+      let cancelButtonLabel = "Cancel"
+      if (isFullyCancelled) {
+        cancelButtonLabel = "Cancel Limit Reached"
+      } else if (cancelCount > 0) {
+        cancelButtonLabel = `Cancel (${cancelCount}/3)`
+      }
+
       res.json({
         ...result,
-        cancelButtonLabel: result.isCancel === 1 ? 'Marked as Cancelled' : 'Cancel'  // Conditionally set the button label
-      });
+        cancelCount,
+        isFullyCancelled,
+        cancelButtonLabel,
+      })
     } else {
-      res.json(result);
+      res.json(result)
     }
   } catch (error) {
-    console.error('Error searching PRF:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Error searching PRF:", error)
+    res.status(500).json({ message: "Server error", error: error.message })
   }
-};
+}
 
-module.exports = { searchPrf };
+module.exports = { searchPrf }
