@@ -11,6 +11,7 @@ const searchPrfNoRoutes = require("./routes/searchPrfNoRoutes")
 const updatePrfDetailsRoutes = require("./routes/updatePrfDetailsRoutes")
 const cancelPrfRoutes = require("./routes/cancelPrfRoutes")
 const uomRoutes = require("./routes/UomRoutes") 
+const approvalRoutes = require("./routes/approvalRoutes")
 
 dotenv.config()
 const app = express()
@@ -31,6 +32,7 @@ app.use("/api", searchPrfNoRoutes)
 app.use("/api", updatePrfDetailsRoutes)
 app.use("/api", cancelPrfRoutes)
 app.use("/api", uomRoutes) 
+app.use("/api", approvalRoutes)
 
 
 
