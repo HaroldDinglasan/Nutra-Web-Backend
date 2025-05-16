@@ -1,7 +1,5 @@
-// Import the database connection from your existing db.js file
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
 
-// Create a new approval assignment
 const createApproval = async (approvalData) => {
   try {
     const pool = await poolPurchaseRequest
@@ -12,7 +10,6 @@ const createApproval = async (approvalData) => {
     }
 
     if (!approvalData.ApplicType) {
-      // Set default value if not provided
       approvalData.ApplicType = "PRF"
     }
 
@@ -25,27 +22,34 @@ const createApproval = async (approvalData) => {
 
     const nextId = idResult.recordset[0].NextID
 
-    // Insert the new approval record
+    // Set default values for approval IDs if not provided
+    // This ensures the user's own ID is used as a fallback
+    const checkedById = approvalData.CheckedById || approvalData.UserID
+    const approvedById = approvalData.ApprovedById || approvalData.UserID
+    const receivedById = approvalData.ReceivedById || approvalData.UserID
+
+    // Create a new approval record with the user's ID
     await pool
       .request()
       .input("ApproverAssignID", sql.Int, nextId)
       .input("UserID", sql.Int, approvalData.UserID)
       .input("ApplicType", sql.VarChar(50), approvalData.ApplicType)
-      .input("CheckedById", sql.UniqueIdentifier, approvalData.CheckedById)
+      .input("ApproverAssignDate", sql.Date, new Date())
+      .input("CheckedById", sql.Int, checkedById)
       .input("CheckedByEmail", sql.VarChar(100), approvalData.CheckedByEmail)
-      .input("ApprovedById", sql.UniqueIdentifier, approvalData.ApprovedById)
+      .input("ApprovedById", sql.Int, approvedById)
       .input("ApprovedByEmail", sql.VarChar(100), approvalData.ApprovedByEmail)
-      .input("ReceivedById", sql.UniqueIdentifier, approvalData.ReceivedById)
+      .input("ReceivedById", sql.Int, receivedById)
       .input("ReceivedByEmail", sql.VarChar(100), approvalData.ReceivedByEmail)
       .query(`
         INSERT INTO AssignedApprovals (
-          ApproverAssignID, UserID, ApplicType, 
+          ApproverAssignID, UserID, ApplicType, ApproverAssignDate,
           CheckedById, CheckedByEmail, 
           ApprovedById, ApprovedByEmail, 
           ReceivedById, ReceivedByEmail
         ) 
         VALUES (
-          @ApproverAssignID, @UserID, @ApplicType, 
+          @ApproverAssignID, @UserID, @ApplicType, @ApproverAssignDate,
           @CheckedById, @CheckedByEmail, 
           @ApprovedById, @ApprovedByEmail, 
           @ReceivedById, @ReceivedByEmail
@@ -59,7 +63,6 @@ const createApproval = async (approvalData) => {
   }
 }
 
-// Get approval by ID
 const getApprovalById = async (id) => {
   try {
     const pool = await poolPurchaseRequest
@@ -75,7 +78,6 @@ const getApprovalById = async (id) => {
   }
 }
 
-// Get approvals by user ID
 const getApprovalsByUserId = async (userId) => {
   try {
     const pool = await poolPurchaseRequest
@@ -91,18 +93,24 @@ const getApprovalsByUserId = async (userId) => {
   }
 }
 
-// Update an approval
 const updateApproval = async (id, approvalData) => {
   try {
     const pool = await poolPurchaseRequest
+
+    // Set default values for approval IDs if not provided
+    // This ensures the user's own ID is used as a fallback
+    const checkedById = approvalData.CheckedById || approvalData.UserID
+    const approvedById = approvalData.ApprovedById || approvalData.UserID
+    const receivedById = approvalData.ReceivedById || approvalData.UserID
+
     await pool
       .request()
       .input("ApproverAssignID", sql.Int, id)
-      .input("CheckedById", sql.UniqueIdentifier, approvalData.CheckedById)
+      .input("CheckedById", sql.Int, checkedById)
       .input("CheckedByEmail", sql.VarChar(100), approvalData.CheckedByEmail)
-      .input("ApprovedById", sql.UniqueIdentifier, approvalData.ApprovedById)
+      .input("ApprovedById", sql.Int, approvedById)
       .input("ApprovedByEmail", sql.VarChar(100), approvalData.ApprovedByEmail)
-      .input("ReceivedById", sql.UniqueIdentifier, approvalData.ReceivedById)
+      .input("ReceivedById", sql.Int, receivedById)
       .input("ReceivedByEmail", sql.VarChar(100), approvalData.ReceivedByEmail)
       .query(`
         UPDATE AssignedApprovals 
