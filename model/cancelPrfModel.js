@@ -5,12 +5,12 @@ const cancelPrf = async (prfId) => {
   try {
     const pool = await poolPurchaseRequest
 
-    // First, get the current PRF data to check date and cancel count
+    // First, get the current PRF data to check date
     const prfResult = await pool
       .request()
       .input("prfId", sql.UniqueIdentifier, prfId)
       .query(`
-        SELECT prfDate, isCancel, ISNULL(cancelCount, 0) as cancelCount
+        SELECT prfDate, isCancel
         FROM PRFTABLE 
         WHERE prfId = @prfId
       `)
@@ -40,52 +40,25 @@ const cancelPrf = async (prfId) => {
       return { success: false, message: "PRF can only be cancelled on the same day it was created" }
     }
 
-    // Use transaction for atomicity
-    const transaction = new sql.Transaction(await pool)
-    await transaction.begin()
+    // Update PRFTABLE - set isCancel to 1
+    const updateResult = await pool
+      .request()
+      .input("prfId", sql.UniqueIdentifier, prfId)
+      .query(`
+        UPDATE PRFTABLE 
+        SET isCancel = 1
+        WHERE prfId = @prfId 
+      `)
 
-    try {
-      // Update PRFTABLE - increment cancelCount but don't enforce a limit
-      const updateResult = await transaction
-        .request()
-        .input("prfId", sql.UniqueIdentifier, prfId)
-        .query(`
-          UPDATE PRFTABLE 
-          SET cancelCount = ISNULL(cancelCount, 0) + 1
-          WHERE prfId = @prfId 
-        `)
+    // Check if update was successful (affected rows should be 1)
+    if (updateResult.rowsAffected[0] === 0) {
+      return { success: false, message: "PRF was modified by another user. Please refresh and try again." }
+    }
 
-      // Check if update was successful (affected rows should be 1)
-      if (updateResult.rowsAffected[0] === 0) {
-        await transaction.rollback()
-        return { success: false, message: "PRF was modified by another user. Please refresh and try again." }
-      }
-
-      // Get the new cancel count
-      const newCancelCountResult = await transaction
-        .request()
-        .input("prfId", sql.UniqueIdentifier, prfId)
-        .query(`
-          SELECT ISNULL(cancelCount, 0) as cancelCount
-          FROM PRFTABLE 
-          WHERE prfId = @prfId
-        `)
-
-      const newCancelCount = newCancelCountResult.recordset[0].cancelCount
-
-      // Commit the transaction
-      await transaction.commit()
-
-      return {
-        success: true,
-        message: "PRF canceled successfully",
-        newCancelCount: newCancelCount,
-        isFullyCancelled: false, // No concept of "fully cancelled" with unlimited cancellations
-      }
-    } catch (error) {
-      // Rollback in case of error
-      await transaction.rollback()
-      throw error
+    return {
+      success: true,
+      message: "PRF canceled successfully",
+      isCancel: 1
     }
   } catch (error) {
     console.error("Database error in cancelPrf:", error)

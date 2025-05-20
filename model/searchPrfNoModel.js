@@ -17,12 +17,12 @@ const searchPrfByNumber = async (prfNo) => {
       .request()
       .input("prfNo", searchPrfNo)
       .query(`
-        SELECT prfId, prfNo, prfDate, preparedBy, departmentId, isCancel AS prfIsCancel, cancelCount
+        SELECT prfId, prfNo, prfDate, preparedBy, departmentId, isCancel
         FROM PRFTABLE 
         WHERE prfNo = @prfNo
       `)
 
-    console.log(`Header query result count: ${headerResult.recordset.length}`)
+    // console.log(`Header query result count: ${headerResult.recordset.length}`)
 
     if (headerResult.recordset.length === 0) {
       return { found: false, message: "PRF not found" }
@@ -30,10 +30,10 @@ const searchPrfByNumber = async (prfNo) => {
 
     const prfHeader = headerResult.recordset[0]
     const prfId = prfHeader.prfId
-    const isCancel = prfHeader.prfIsCancel // Grab the isCancel field to determine the cancel status
-    const cancelCount = prfHeader.cancelCount || 0 // Get cancel count, default to 0 if null
-
-    console.log(`Found PRF with ID: ${prfId}, isCancel: ${isCancel}, cancelCount: ${cancelCount}`)
+    
+    // Convert isCancel to a number to ensure consistent type
+    const isCancel = Number(prfHeader.isCancel)
+    // console.log(`Found PRF with ID: ${prfId}, isCancel: ${isCancel}, type: ${typeof isCancel}`)
 
     // Next, get the PRF details using the prfId
     const detailsResult = await pool
@@ -52,22 +52,37 @@ const searchPrfByNumber = async (prfNo) => {
         WHERE PrfId = @prfId
       `)
 
-    console.log(`Details query result count: ${detailsResult.recordset.length}`)
+    // console.log(`Details query result count: ${detailsResult.recordset.length}`)
 
-    // Check if fully cancelled (either by isCancel flag or by cancel count)
-    const isFullyCancelled = isCancel === 1 || cancelCount >= 3
+    // Check if it's the same day as the PRF was created
+    const prfDate = new Date(prfHeader.prfDate)
+    const currentDate = new Date()
+    const isSameDay =
+      prfDate.getFullYear() === currentDate.getFullYear() &&
+      prfDate.getMonth() === currentDate.getMonth() &&
+      prfDate.getDate() === currentDate.getDate()
+
+    // A PRF is fully cancelled if isCancel = 1
+    const isFullyCancelled = isCancel === 1
+
+    console.log(
+      `PRF date: ${prfDate}, Current date: ${currentDate}, Is same day: ${isSameDay}, Is fully cancelled: ${isFullyCancelled}`,
+    )
 
     // Return both the header and details information, including cancellation status
     return {
       found: true,
       header: {
         ...prfHeader,
+        prfIsCancel: isCancel, 
+        isCancel: isCancel, 
         isFullyCancelled: isFullyCancelled, // Add explicit flag for UI
+        isSameDay: isSameDay, // Add flag to indicate if it's the same day
       },
       details: detailsResult.recordset,
-      isCancel,
-      cancelCount,
+      isCancel: isCancel, 
       isFullyCancelled,
+      isSameDay,
     }
   } catch (error) {
     console.error("Database error in searchPrfByNumber:", error)
