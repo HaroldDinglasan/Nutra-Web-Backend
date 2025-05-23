@@ -62,7 +62,7 @@ const searchPrfByNumber = async (prfNo) => {
       prfDate.getMonth() === currentDate.getMonth() &&
       prfDate.getDate() === currentDate.getDate()
 
-    // A PRF is fully cancelled if isCancel = 1
+    // A PRF is fully cancelled ONLY if isCancel = 1 in the database
     const isFullyCancelled = isCancel === 1
 
     console.log(
@@ -76,7 +76,7 @@ const searchPrfByNumber = async (prfNo) => {
         ...prfHeader,
         prfIsCancel: isCancel, 
         isCancel: isCancel, 
-        isFullyCancelled: isFullyCancelled, // Add explicit flag for UI
+        isFullyCancelled: isFullyCancelled, // Only true if explicitly cancelled in DB
         isSameDay: isSameDay, // Add flag to indicate if it's the same day
       },
       details: detailsResult.recordset,
