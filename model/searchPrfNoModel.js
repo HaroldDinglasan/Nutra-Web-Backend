@@ -17,12 +17,10 @@ const searchPrfByNumber = async (prfNo) => {
       .request()
       .input("prfNo", searchPrfNo)
       .query(`
-        SELECT prfId, prfNo, prfDate, preparedBy, departmentId, isCancel
+        SELECT prfId, prfNo, prfDate, preparedBy, departmentId, isCancel, checkedBy, approvedBy, receivedBy
         FROM PRFTABLE 
         WHERE prfNo = @prfNo
       `)
-
-    // console.log(`Header query result count: ${headerResult.recordset.length}`)
 
     if (headerResult.recordset.length === 0) {
       return { found: false, message: "PRF not found" }
@@ -30,10 +28,9 @@ const searchPrfByNumber = async (prfNo) => {
 
     const prfHeader = headerResult.recordset[0]
     const prfId = prfHeader.prfId
-    
+
     // Convert isCancel to a number to ensure consistent type
     const isCancel = Number(prfHeader.isCancel)
-    // console.log(`Found PRF with ID: ${prfId}, isCancel: ${isCancel}, type: ${typeof isCancel}`)
 
     // Next, get the PRF details using the prfId
     const detailsResult = await pool
@@ -52,8 +49,6 @@ const searchPrfByNumber = async (prfNo) => {
         WHERE PrfId = @prfId
       `)
 
-    // console.log(`Details query result count: ${detailsResult.recordset.length}`)
-
     // Check if it's the same day as the PRF was created
     const prfDate = new Date(prfHeader.prfDate)
     const currentDate = new Date()
@@ -69,18 +64,24 @@ const searchPrfByNumber = async (prfNo) => {
       `PRF date: ${prfDate}, Current date: ${currentDate}, Is same day: ${isSameDay}, Is fully cancelled: ${isFullyCancelled}`,
     )
 
-    // Return both the header and details information, including cancellation status
+    // Return both the header and details information, including cancellation status and approval names
     return {
       found: true,
       header: {
         ...prfHeader,
-        prfIsCancel: isCancel, 
-        isCancel: isCancel, 
-        isFullyCancelled: isFullyCancelled, // Only true if explicitly cancelled in DB
-        isSameDay: isSameDay, // Add flag to indicate if it's the same day
+        prfIsCancel: isCancel,
+        isCancel: isCancel,
+        isFullyCancelled: isFullyCancelled,
+        isSameDay: isSameDay,
       },
       details: detailsResult.recordset,
-      isCancel: isCancel, 
+      // Include approval names in the response
+      approvalNames: {
+        checkedByUser: prfHeader.checkedBy || "",
+        approvedByUser: prfHeader.approvedBy || "",
+        receivedByUser: prfHeader.receivedBy || "",
+      },
+      isCancel: isCancel,
       isFullyCancelled,
       isSameDay,
     }
