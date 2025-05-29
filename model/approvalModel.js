@@ -22,24 +22,23 @@ const createApproval = async (approvalData) => {
 
     const nextId = idResult.recordset[0].NextID
 
-    // Set default values for approval IDs if not provided
-    // This ensures the user's own ID is used as a fallback
-    const checkedById = approvalData.CheckedById || approvalData.UserID
-    const approvedById = approvalData.ApprovedById || approvalData.UserID
-    const receivedById = approvalData.ReceivedById || approvalData.UserID
+    // Use the provided Oids for approval IDs (these are the selected employees' Oids)
+    const checkedById = approvalData.CheckedById || null
+    const approvedById = approvalData.ApprovedById || null
+    const receivedById = approvalData.ReceivedById || null
 
-    // Create a new approval record with the user's ID
+    // Create a new approval record with the selected employees' Oids
     await pool
       .request()
       .input("ApproverAssignID", sql.Int, nextId)
       .input("UserID", sql.Int, approvalData.UserID)
       .input("ApplicType", sql.VarChar(50), approvalData.ApplicType)
       .input("ApproverAssignDate", sql.Date, new Date())
-      .input("CheckedById", sql.Int, checkedById)
+      .input("CheckedById", sql.UniqueIdentifier, checkedById)
       .input("CheckedByEmail", sql.VarChar(100), approvalData.CheckedByEmail)
-      .input("ApprovedById", sql.Int, approvedById)
+      .input("ApprovedById", sql.UniqueIdentifier, approvedById)
       .input("ApprovedByEmail", sql.VarChar(100), approvalData.ApprovedByEmail)
-      .input("ReceivedById", sql.Int, receivedById)
+      .input("ReceivedById", sql.UniqueIdentifier, receivedById)
       .input("ReceivedByEmail", sql.VarChar(100), approvalData.ReceivedByEmail)
       .query(`
         INSERT INTO AssignedApprovals (
@@ -97,20 +96,19 @@ const updateApproval = async (id, approvalData) => {
   try {
     const pool = await poolPurchaseRequest
 
-    // Set default values for approval IDs if not provided
-    // This ensures the user's own ID is used as a fallback
-    const checkedById = approvalData.CheckedById || approvalData.UserID
-    const approvedById = approvalData.ApprovedById || approvalData.UserID
-    const receivedById = approvalData.ReceivedById || approvalData.UserID
+    // Use the provided Oids for approval IDs (these are the selected employees' Oids)
+    const checkedById = approvalData.CheckedById || null
+    const approvedById = approvalData.ApprovedById || null
+    const receivedById = approvalData.ReceivedById || null
 
     await pool
       .request()
       .input("ApproverAssignID", sql.Int, id)
-      .input("CheckedById", sql.Int, checkedById)
+      .input("CheckedById", sql.UniqueIdentifier, checkedById)
       .input("CheckedByEmail", sql.VarChar(100), approvalData.CheckedByEmail)
-      .input("ApprovedById", sql.Int, approvedById)
+      .input("ApprovedById", sql.UniqueIdentifier, approvedById)
       .input("ApprovedByEmail", sql.VarChar(100), approvalData.ApprovedByEmail)
-      .input("ReceivedById", sql.Int, receivedById)
+      .input("ReceivedById", sql.UniqueIdentifier, receivedById)
       .input("ReceivedByEmail", sql.VarChar(100), approvalData.ReceivedByEmail)
       .query(`
         UPDATE AssignedApprovals 
