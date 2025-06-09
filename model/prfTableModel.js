@@ -1,4 +1,3 @@
-// model/prfTableModel.js
 
 const { poolPurchaseRequest, poolAVLI } = require("../connectionHelper/db")
 
@@ -12,7 +11,6 @@ const savePrfHeader = async (prfData) => {
 
     // If departmentId is not provided in prfData, fetch it from Users_Info
     if (!departmentId) {
-      console.log("No departmentId provided in prfData, fetching from database")
 
       const departmentResult = await pool
         .request()
