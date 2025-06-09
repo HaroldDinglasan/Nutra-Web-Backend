@@ -10,8 +10,6 @@ const searchPrfByNumber = async (prfNo) => {
       searchPrfNo = prfNo.substring(4) // Remove the first 4 characters ("No. ")
     }
 
-    console.log(`Searching for PRF with number: ${searchPrfNo}`)
-
     // First, get the PRF header information and prfId
     const headerResult = await pool
       .request()
@@ -59,10 +57,6 @@ const searchPrfByNumber = async (prfNo) => {
 
     // A PRF is fully cancelled ONLY if isCancel = 1 in the database
     const isFullyCancelled = isCancel === 1
-
-    console.log(
-      `PRF date: ${prfDate}, Current date: ${currentDate}, Is same day: ${isSameDay}, Is fully cancelled: ${isFullyCancelled}`,
-    )
 
     // Return both the header and details information, including cancellation status and approval names
     return {

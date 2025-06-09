@@ -16,9 +16,8 @@ const savePRFDetails = async (prfDetailsArray) => {
         table.columns.add("Purpose", sql.VarChar(250), { nullable: false });
         table.columns.add("Description", sql.VarChar(250), { nullable: true });
 
-        // Add multiple rows
         prfDetailsArray.forEach((detail) => {
-            console.log("Saving PRF details with PrfId:", detail.prfId); // ✅ Log PrfId
+            console.log("Saving PRF details with PrfId:", detail.prfId); // Log PrfId
             table.rows.add(
                 detail.prfId,
                 detail.stockId,

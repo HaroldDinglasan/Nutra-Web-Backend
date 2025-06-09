@@ -1,4 +1,4 @@
-// Fetches Full name and Oid from AVLI SecuritySystemUser table
+
 const { sql, poolAVLI } = require("../connectionHelper/db")
 
 // Get Employee Full Names and Oids from AVLI Database
