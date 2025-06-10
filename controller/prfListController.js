@@ -17,7 +17,6 @@ const fetchPrfListByUser = async (req, res) => {
       return res.status(400).json({ message: "Username is required" })
     }
 
-    console.log(`Fetching PRFs for user: ${username}`)
     const prfList = await getPrfListByUser(username)
 
     console.log(`Returning ${prfList.length} PRFs for user: ${username}`)
