@@ -6,7 +6,6 @@ const savePrfHeader = async (prfData) => {
     const pool = await poolPurchaseRequest
     const avliPool = await poolAVLI
 
-    // Use the departmentId from prfData if it exists
     let departmentId = prfData.departmentId
 
     // If departmentId is not provided in prfData, fetch it from Users_Info
@@ -26,8 +25,6 @@ const savePrfHeader = async (prfData) => {
       // Get the departmentId from the query result
       departmentId = departmentResult.recordset[0].departmentId
     }
-
-    console.log("Using departmentId:", departmentId)
 
     // Check if PRF already exists
     const checkResult = await pool
@@ -127,7 +124,7 @@ const savePrfHeader = async (prfData) => {
   }
 }
 
-// Function to update PRFTABLE with approval names only
+// Update PRFTABLE with approval names only
 const updatePrfApprovalNames = async (prfId, approvalNames) => {
   try {
     const pool = await poolPurchaseRequest
