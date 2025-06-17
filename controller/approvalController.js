@@ -19,6 +19,13 @@ const saveApproval = async (req, res) => {
       approvalData.ApplicType = "PRF"
     }
 
+    // Check if this request is from ApprovalModal (should skip notifications)
+    if (approvalData.skipNotifications) {
+      console.log("Skipping notifications as requested by ApprovalModal")
+      // Remove the flag before saving to database
+      delete approvalData.skipNotifications
+    }
+
     const result = await createApproval(approvalData)
 
     res.status(201).json({
@@ -35,7 +42,7 @@ const saveApproval = async (req, res) => {
   }
 }
 
-// Controller to get approval by ID
+// Get approval by ID
 const getApproval = async (req, res) => {
   try {
     const { id } = req.params
@@ -61,7 +68,7 @@ const getApproval = async (req, res) => {
   }
 }
 
-// Controller to get approvals by user ID
+// Get approvals by user ID
 const getUserApprovals = async (req, res) => {
   try {
     const { userId } = req.params
@@ -80,7 +87,7 @@ const getUserApprovals = async (req, res) => {
   }
 }
 
-// Controller to update an approval
+// Update an approval
 const updateApprovalById = async (req, res) => {
   try {
     const { id } = req.params
@@ -93,6 +100,13 @@ const updateApprovalById = async (req, res) => {
         success: false,
         message: "Approval assignment not found",
       })
+    }
+
+    // Check if this request is from ApprovalModal (should skip notifications)
+    if (approvalData.skipNotifications) {
+      console.log("Skipping notifications as requested by ApprovalModal")
+      // Remove the flag before saving to database
+      delete approvalData.skipNotifications
     }
 
     const updatedApproval = await updateApproval(id, approvalData)
