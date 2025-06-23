@@ -47,7 +47,7 @@ const registerEmployee = async (departmentType, departmentId, fullName, username
       case "Information Technology":
         departmentId = 2
         break
-      case "Finance":
+      case "Sales":
         departmentId = 3
         break
       case "Marketing":
