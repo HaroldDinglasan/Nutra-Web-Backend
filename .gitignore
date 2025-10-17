@@ -7,6 +7,12 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
+DB_USER=sa
+DB_PASSWORD="QnE123!@#"
+DB_SERVER=NTBI2\testqnebss
+DB_NAME_PURCHASE=PurchaseRequestDB
+DB_NAME_AVLI=TEST_AVLI
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
