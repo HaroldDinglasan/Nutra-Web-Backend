@@ -5,7 +5,7 @@ const { sql, poolAVLI } = require("../connectionHelper/db")
 const getEmployees = async () => {
   try {
     const pool = await poolAVLI
-    const result = await pool.request().query("SELECT Oid, FullName FROM AVLI.dbo.SecuritySystemUser ORDER BY FullName") // Cross-database query
+    const result = await pool.request().query("SELECT Oid, FullName FROM SecuritySystemUser ORDER BY FullName") // Cross-database query
     return result.recordset
   } catch (error) {
     console.error("❌ Error fetching employees:", error)
@@ -20,7 +20,7 @@ const getEmployeeByOid = async (oid) => {
     const result = await pool
       .request()
       .input("oid", sql.UniqueIdentifier, oid)
-      .query("SELECT Oid, FullName FROM AVLI.dbo.SecuritySystemUser WHERE Oid = @oid")
+      .query("SELECT Oid, FullName FROM SecuritySystemUser WHERE Oid = @oid")
     return result.recordset[0] || null
   } catch (error) {
     console.error("❌ Error fetching employee by Oid:", error)

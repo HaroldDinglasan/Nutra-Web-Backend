@@ -16,12 +16,11 @@ const getUomCodesByStockId = async (stockId) => {
           u.UOMCode,
           u.Description,
           u.Rate
-        FROM [AVLI].[dbo].[UOMs] u
-        LEFT JOIN [AVLI].[dbo].[Stocks] s ON u.StockId = s.Id
+        FROM [UOMs] u
+        LEFT JOIN [Stocks] s ON u.StockId = s.Id
         ORDER BY u.UOMCode
       `)
 
-      console.log(`Query executed. Found ${result.recordset.length} UOMCodes for all stocks`)
       return result.recordset
     }
 
@@ -38,12 +37,10 @@ const getUomCodesByStockId = async (stockId) => {
             u.UOMCode,
             u.Description,
             u.Rate
-          FROM [AVLI].[dbo].[UOMs] u
-          LEFT JOIN [AVLI].[dbo].[Stocks] s ON u.StockId = s.Id
+          FROM [UOMs] u
+          LEFT JOIN [Stocks] s ON u.StockId = s.Id
           WHERE s.StockCode = @stockCode
         `)
-
-      console.log(`Query executed. Found ${result.recordset.length} UOMCodes for StockCode: ${stockId}`)
 
       if (result.recordset.length > 0) {
         return result.recordset
@@ -61,12 +58,10 @@ const getUomCodesByStockId = async (stockId) => {
           u.UOMCode,
           u.Description,
           u.Rate
-        FROM [AVLI].[dbo].[UOMs] u
-        LEFT JOIN [AVLI].[dbo].[Stocks] s ON u.StockId = s.Id
+        FROM [UOMs] u
+        LEFT JOIN [Stocks] s ON u.StockId = s.Id
         WHERE u.StockId = @stockId
       `)
-
-    console.log(`Query executed. Found ${result.recordset.length} UOMCodes for StockId: ${stockId}`)
 
     if (result.recordset.length > 0) {
       console.log("UOMCodes found:", result.recordset)
@@ -76,8 +71,8 @@ const getUomCodesByStockId = async (stockId) => {
       // direct query to see what's in the UOMs table
       const checkResult = await pool.request().query(`
           SELECT TOP 5 u.Id, u.StockId, u.UOMCode, u.Description, u.Rate
-          FROM [AVLI].[dbo].[UOMs] u
-          LEFT JOIN [AVLI].[dbo].[Stocks] s ON u.StockId = s.Id
+          FROM [UOMs] u
+          LEFT JOIN [Stocks] s ON u.StockId = s.Id
         `)
 
       console.log("Sample UOMs records:", checkResult.recordset)
