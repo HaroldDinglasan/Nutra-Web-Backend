@@ -14,6 +14,7 @@ const uomRoutes = require("./routes/UomRoutes")
 const approvalRoutes = require("./routes/approvalRoutes")
 const uncancelPrfRoutes = require("./routes/uncancelPrfRoutes")
 const notificationRoutes = require("./routes/notificationRoutes")
+const markAsReceivedRoutes = require("./routes/markAsReceivedRoutes")
 
 dotenv.config()
 const app = express()
@@ -37,7 +38,7 @@ app.use("/api", uomRoutes)
 app.use("/api", approvalRoutes)
 app.use("/api", uncancelPrfRoutes)
 app.use("/api", notificationRoutes)
-
+app.use("/api", markAsReceivedRoutes)
 
 
 app.listen(PORT, () => {

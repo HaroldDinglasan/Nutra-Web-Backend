@@ -12,13 +12,14 @@ const getPrfList = async () => {
           p.prfDate, 
           p.isCancel AS prfIsCancel,  
           d.StockName,
+          d.Id,
           d.QTY as quantity,
           d.UOM as unit,
           d.dateNeeded,
           d.isCancel as detailsIsCancel
         FROM PRFTABLE p
         LEFT OUTER JOIN PRFTABLE_DETAILS d ON p.prfId = d.PrfId
-        GROUP BY p.prfId, p.prfNo, p.preparedBy, p.prfDate, p.isCancel, d.StockName, d.QTY, d.UOM, d.dateNeeded, d.isCancel
+        GROUP BY p.prfId, p.prfNo, p.preparedBy, p.prfDate, p.isCancel, d.StockName, d.Id, d.QTY, d.UOM, d.dateNeeded, d.isCancel
         ORDER BY p.prfDate DESC
       `)
 
