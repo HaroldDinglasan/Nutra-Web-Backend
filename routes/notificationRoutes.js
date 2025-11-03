@@ -166,6 +166,7 @@ router.post("/notifications/send-direct", async (req, res) => {
     }
 
     // Send notifications
+    console.log("Final PRF data before sending emails:", prfData)
     const results = await sendApprovalNotifications(approvalData, prfData, senderEmail, smtpPassword)
 
     res.status(200).json({
@@ -181,5 +182,7 @@ router.post("/notifications/send-direct", async (req, res) => {
     })
   }
 })
+
+
 
 module.exports = router

@@ -12,7 +12,7 @@ const checkUserExists = async (username, fullName) => {
         SELECT COUNT(*) as count
         FROM Users_Info 
         WHERE LOWER(LTRIM(RTRIM(username))) = LOWER(LTRIM(RTRIM(@username))) 
-           OR LOWER(LTRIM(RTRIM(fullName))) = LOWER(LTRIM(RTRIM(@fullName)))
+          OR LOWER(LTRIM(RTRIM(fullName))) = LOWER(LTRIM(RTRIM(@fullName)))
       `)
 
     const count = result.recordset[0].count
@@ -30,40 +30,58 @@ const registerEmployee = async (departmentType, departmentId, fullName, username
     
     // Check if user already exists
     const userExists = await checkUserExists(username, fullName)
-   
     if (userExists) {
-      return {
-        success: false,
-        message: "User already exists",
-      }
+      return { success: false, message: "User already exists" }
     }
 
     // Determine departmentId based on departmentType
-    let departmentId
+    let deptId
     switch (departmentType) {
       case "Human Resource":
-        departmentId = 1
+        deptId = 1
         break
       case "Information Technology":
-        departmentId = 2
+        deptId = 2
         break
-      case "Sales":
-        departmentId = 3
+      case "Finance":
+        deptId = 3
         break
       case "Marketing":
-        departmentId = 4
+        deptId = 4
         break
       case "Purchasing":
-        departmentId = 5
+        deptId = 5
         break
       case "Production":
-        departmentId = 6
+        deptId = 6
         break
       case "Corplan":
-        departmentId = 7
+        deptId = 7
+      case "CGS":
+        deptId = 8
+      case "CMD":
+        deptId = 9
+        break
+      case "Audit":
+        deptId = 10
+        break
+      case "Legal": 
+        deptId = 11
+        break
+      case "Regulatory":
+        deptId = 12
+        break
+      case "Engineering":
+        deptId = 13
+        break
+      case "WLO": 
+        deptId = 14
+        break
+      case "Sales":
+        deptId = 15
         break
       default:
-        departmentId = null
+        deptId = null
     }
 
     const pool = await poolPurchaseRequest
@@ -73,7 +91,7 @@ const registerEmployee = async (departmentType, departmentId, fullName, username
       .input("fullName", sql.NVarChar, fullName)
       .input("username", sql.NVarChar, username)
       .input("password", sql.NVarChar, password)
-      .input("departmentId", sql.Int, departmentId)
+      .input("departmentId", sql.Int, deptId)
       .query(`
         INSERT INTO Users_Info (departmentType, fullName, username, password, isActive, createAt, departmentId) 
         OUTPUT INSERTED.userID
@@ -94,11 +112,7 @@ const registerEmployee = async (departmentType, departmentId, fullName, username
         VALUES (@userID, @username, @password);
       `)
 
-    return {
-      success: true,
-      message: "User registered successfully!",
-      userID,
-    }
+    return { success: true, message: "User registered successfully!", userID }
   } catch (error) {
     console.error("❌ Error registering employee:", error)
     throw error
