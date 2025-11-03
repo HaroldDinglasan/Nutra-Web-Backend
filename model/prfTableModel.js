@@ -21,7 +21,6 @@ const savePrfHeader = async (prfData) => {
       if (departmentResult.recordset.length === 0) {
         throw new Error("Department ID not found.")
       }
-
       // Get the departmentId from the query result
       departmentId = departmentResult.recordset[0].departmentId
     }
@@ -86,7 +85,6 @@ const savePrfHeader = async (prfData) => {
             return ""
           }
         }
-
         checkedByName = await getEmployeeName(approval.CheckedById)
         approvedByName = await getEmployeeName(approval.ApprovedById)
         receivedByName = await getEmployeeName(approval.ReceivedById)
@@ -116,7 +114,6 @@ const savePrfHeader = async (prfData) => {
       `)
 
     console.log("PRF header saved with approval names:", { checkedByName, approvedByName, receivedByName })
-
     return prfId
   } catch (error) {
     console.error("Database error:", error)
@@ -140,7 +137,6 @@ const updatePrfApprovalNames = async (prfId, approvalNames) => {
         SET checkedBy = @checkedBy, approvedBy = @approvedBy, receivedBy = @receivedBy
         WHERE prfId = @prfId
       `)
-
     return {
       success: true,
       rowsAffected: result.rowsAffected[0],

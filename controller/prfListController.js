@@ -1,4 +1,4 @@
-const { getPrfList, getPrfListByUser } = require("../model/prfListModel")
+const { getPrfList, getPrfListByUser, getPrfByNumber } = require("../model/prfListModel")
 
 const fetchPrfList = async (req, res) => {
   try {
@@ -27,4 +27,18 @@ const fetchPrfListByUser = async (req, res) => {
   }
 }
 
-module.exports = { fetchPrfList, fetchPrfListByUser }
+const fetchPrfByNumber = async (req, res) => {
+  try {
+    const { prfId } = req.params;
+    if (!prfId) return res.status(400).json({ message: "PRF number is required" });
+
+    const prfData = await getPrfByNumber(prfId);
+    if (!prfData) return res.status(404).json({ message: "PRF not found" });
+
+    res.status(200).json(prfData);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching PRF by number", error: error.message });
+  }
+};
+
+module.exports = { fetchPrfList, fetchPrfListByUser, fetchPrfByNumber }

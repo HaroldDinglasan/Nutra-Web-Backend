@@ -4,10 +4,8 @@ const { savePrfHeader, updatePrfApprovalNames } = require("../model/prfTableMode
 const savePrf = async (req, res) => {
   try {
     const prfHeader = req.body
-
     // Save PRF header
     const prfId = await savePrfHeader(prfHeader)
-
     res.status(200).json({
       success: true,
       message: "PRF header saved successfully",
@@ -27,7 +25,6 @@ const updatePrfApprovals = async (req, res) => {
   try {
     const { prfId } = req.params
     const { checkedByUser, approvedByUser, receivedByUser } = req.body
-
     // Validate required fields
     if (!prfId) {
       return res.status(400).json({
@@ -35,27 +32,23 @@ const updatePrfApprovals = async (req, res) => {
         message: "PRF ID is required",
       })
     }
-
     if (!checkedByUser || !approvedByUser || !receivedByUser) {
       return res.status(400).json({
         success: false,
         message: "All approval names (checkedByUser, approvedByUser, receivedByUser) are required",
       })
     }
-
     const result = await updatePrfApprovalNames(prfId, {
       checkedByUser,
       approvedByUser,
       receivedByUser,
     })
-
     if (result.rowsAffected === 0) {
       return res.status(404).json({
         success: false,
         message: "PRF not found",
       })
     }
-
     res.status(200).json({
       success: true,
       message: "PRF approval names updated successfully",
