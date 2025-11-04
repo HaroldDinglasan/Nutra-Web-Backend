@@ -87,7 +87,7 @@ const savePrfHeader = async (prfData) => {
         }
         checkedByName = await getEmployeeName(approval.CheckedById)
         approvedByName = await getEmployeeName(approval.ApprovedById)
-        receivedByName = await getEmployeeName(approval.ReceivedById)
+        receivedByName = "Benjie L. Salvador"
 
         console.log("Retrieved approval names:", { checkedByName, approvedByName, receivedByName })
       } else {
@@ -97,7 +97,7 @@ const savePrfHeader = async (prfData) => {
       console.log("User not found in Users_Info table:", prfData.preparedBy)
     }
 
-    // Insert the PRF header with approval names
+    // Insert ng prf header details
     await pool
       .request()
       .input("prfId", prfId)
@@ -105,9 +105,9 @@ const savePrfHeader = async (prfData) => {
       .input("prfDate", prfData.prfDate)
       .input("preparedBy", prfData.preparedBy)
       .input("departmentId", departmentId)
-      .input("checkedBy", checkedByName || null)
-      .input("approvedBy", approvedByName || null)
-      .input("receivedBy", receivedByName || null)
+      .input("checkedBy", checkedByName)
+      .input("approvedBy", approvedByName)
+      .input("receivedBy", receivedByName)
       .query(`
         INSERT INTO PRFTABLE (prfId, prfNo, prfDate, preparedBy, departmentId, checkedBy, approvedBy, receivedBy)
         VALUES (@prfId, @prfNo, @prfDate, @preparedBy, @departmentId, @checkedBy, @approvedBy, @receivedBy);
