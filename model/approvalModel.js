@@ -1,4 +1,4 @@
-const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
+const { sql, poolPurchaseRequest, poolAVLI } = require("../connectionHelper/db")
 
 const createApproval = async (approvalData) => {
   try {
@@ -129,9 +129,72 @@ const updateApproval = async (id, approvalData) => {
   }
 }
 
+// Inuupdate yung CheckedById, ApprovedById, at ReceivedById ng table AssignedApprovals
+const populateAssignedApprovals = async (userId, checkedByName, approvedByName, receivedByName) => {
+  try {
+    const avliPool = await poolAVLI
+    const purchasePool = await poolPurchaseRequest
+
+    // Hinahanap ang OID ng isang user base sa FullName
+    const getEmployeeOid = async (fullName) => {
+      if (!fullName) return null
+      const result = await avliPool
+        .request()
+        .input("fullName", sql.VarChar, fullName)
+        .query(`SELECT Oid FROM SecuritySystemUser WHERE FullName = @fullName`)
+      return result.recordset.length > 0 ? result.recordset[0].Oid : null
+    }
+
+    const checkedById = await getEmployeeOid(checkedByName)
+    const approvedById = await getEmployeeOid(approvedByName)
+    const receivedById = await getEmployeeOid(receivedByName)
+
+    // chinecheck kung existing na ang record 
+    const existing = await purchasePool
+      .request()
+      .input("userId", sql.Int, userId)
+      .query(`SELECT ApproverAssignID FROM AssignedApprovals WHERE UserID = @userId AND ApplicType = 'PRF'`)
+
+    if (existing.recordset.length > 0) {
+      await purchasePool
+        .request()
+        .input("userId", sql.Int, userId)
+        .input("checkedById", sql.UniqueIdentifier, checkedById)
+        .input("approvedById", sql.UniqueIdentifier, approvedById)
+        .input("receivedById", sql.UniqueIdentifier, receivedById)
+        // Inuupdate ang checked, approved, received by id na maging OID ng approvers sa table ng SecuritySystemUser Database ng TEST_AVLI
+        .query(`
+          UPDATE AssignedApprovals
+          SET CheckedById = @checkedById,
+              ApprovedById = @approvedById,
+              ReceivedById = @receivedById
+          WHERE UserID = @userId AND ApplicType = 'PRF'
+        `)
+    } else {
+      // Insert new record
+      await purchasePool
+        .request()
+        .input("userId", sql.Int, userId)
+        .input("checkedById", sql.UniqueIdentifier, checkedById)
+        .input("approvedById", sql.UniqueIdentifier, approvedById)
+        .input("receivedById", sql.UniqueIdentifier, receivedById)
+        .query(`
+          INSERT INTO AssignedApprovals (UserID, ApplicType, CheckedById, ApprovedById, ReceivedById)
+          VALUES (@userId, 'PRF', @checkedById, @approvedById, @receivedById)
+        `)
+    }
+    console.log("✅ AssignedApprovals updated successfully.")
+    return { checkedById, approvedById, receivedById }
+  } catch (error) {
+    console.error("❌ Error populating AssignedApprovals:", error)
+    throw new Error("Failed to populate AssignedApprovals: " + error.message)
+  }
+}
+
 module.exports = {
   createApproval,
   getApprovalById,
   getApprovalsByUserId,
   updateApproval,
+  populateAssignedApprovals
 }

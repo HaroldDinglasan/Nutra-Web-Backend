@@ -1,6 +1,5 @@
-const { createApproval, getApprovalById, getApprovalsByUserId, updateApproval } = require("../model/approvalModel")
+const { populateAssignedApprovals, createApproval, getApprovalById, getApprovalsByUserId, updateApproval } = require("../model/approvalModel")
 
-// Controller to handle creating a new approval assignment
 const saveApproval = async (req, res) => {
   try {
     const approvalData = req.body
@@ -14,7 +13,7 @@ const saveApproval = async (req, res) => {
       })
     }
 
-    // Set default ApplicType if not provided
+    // set na naka default
     if (!approvalData.ApplicType) {
       approvalData.ApplicType = "PRF"
     }
@@ -125,9 +124,32 @@ const updateApprovalById = async (req, res) => {
   }
 }
 
+const populateApprovals = async (req, res) => {
+  try {
+    const { userId, checkedBy, approvedBy, receivedBy } = req.body
+
+    if (!userId) return res.status(400).json({ message: "User ID is required." })
+
+    const result = await populateAssignedApprovals(userId, checkedBy, approvedBy, receivedBy)
+
+    res.status(200).json({
+      success: true,
+      message: "Approvals populated successfully.",
+      data: result,
+    })
+  } catch (error) {
+    console.error("Error populating approvals:", error)
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to populate approvals.",
+    })
+  }
+}
+
 module.exports = {
   saveApproval,
   getApproval,
   getUserApprovals,
   updateApprovalById,
+  populateApprovals
 }

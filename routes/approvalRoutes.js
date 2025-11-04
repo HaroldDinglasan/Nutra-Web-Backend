@@ -1,5 +1,5 @@
 const express = require("express")
-const { saveApproval, getApproval, getUserApprovals, updateApprovalById } = require("../controller/approvalController")
+const { populateApprovals, saveApproval, getApproval, getUserApprovals, updateApprovalById } = require("../controller/approvalController")
 
 const router = express.Router()
 
@@ -14,5 +14,8 @@ router.get("/approvals/user/:userId", getUserApprovals)
 
 // Update an approval
 router.put("/approvals/:id", updateApprovalById)
+
+// POST route to populate AssignedApprovals OIDs
+router.post("/populate-approvals", populateApprovals)
 
 module.exports = router
