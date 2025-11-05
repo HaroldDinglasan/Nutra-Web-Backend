@@ -60,7 +60,7 @@ router.post("/notifications/send/:approvalId", async (req, res) => {
         prfDate: dbPrfData.prfDate,
         preparedBy: dbPrfData.preparedBy,
         departmentId: dbPrfData.departmentId,
-        departmentName: dbPrfData.departmentName,
+        departmentType: dbPrfData.departmentType,
         company: company || "NutraTech Biopharma, Inc",
         replyTo: senderEmail,
       }
@@ -158,7 +158,7 @@ router.post("/notifications/send-direct", async (req, res) => {
         prfDate: dbPrfData.prfDate,
         preparedBy: dbPrfData.preparedBy,
         departmentId: dbPrfData.departmentId,
-        departmentName: dbPrfData.departmentName,
+        departmentType: dbPrfData.departmentType,
         company: company || "NutraTech Biopharma, Inc",
         replyTo: senderEmail,
       }
@@ -182,7 +182,5 @@ router.post("/notifications/send-direct", async (req, res) => {
     })
   }
 })
-
-
 
 module.exports = router

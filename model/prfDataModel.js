@@ -109,29 +109,34 @@ const getDepartmentName = async (departmentId) => {
   }
 }
 
-// Function to get PRF data with department name
+// Function para makuha kung anong department type sa table na Users_Info
 const getPrfWithDepartment = async (prfId) => {
   try {
-    const prfData = await getPrfById(prfId)
+    const pool = await poolPurchaseRequest;
 
-    if (!prfData) {
-      return null
-    }
+    const result = await pool
+      .request()
+      .input("prfId", prfId)
+      .query(`
+        SELECT 
+          p.prfId,
+          p.prfNo,
+          p.prfDate,
+          p.preparedBy,
+          p.departmentId,
+          u.departmentType AS departmentType
+        FROM PRFTABLE p
+        LEFT JOIN Users_Info u
+          ON p.preparedBy = u.fullName
+        WHERE p.prfId = @prfId
+      `);
 
-    // Get department name
-    if (prfData.departmentId) {
-      const departmentName = await getDepartmentName(prfData.departmentId)
-      if (departmentName) {
-        prfData.departmentName = departmentName
-      }
-    }
-
-    return prfData
+    return result.recordset[0] || null;
   } catch (error) {
-    console.error("Error getting PRF with department:", error)
-    throw error
+    console.error("Error getting PRF with department:", error);
+    throw error;
   }
-}
+};
 
 module.exports = {
   getPrfById,
