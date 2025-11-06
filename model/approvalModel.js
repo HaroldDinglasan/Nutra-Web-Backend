@@ -135,16 +135,27 @@ const populateAssignedApprovals = async (userId, checkedByName, approvedByName, 
     const avliPool = await poolAVLI
     const purchasePool = await poolPurchaseRequest
 
-    // Hinahanap ang OID ng isang user base sa FullName
+    // Hinahanap ang OID ng isang user base sa FullName sa table ng SecuritySystemUser TEST_AVLI Database
     const getEmployeeOid = async (fullName) => {
       if (!fullName) return null
+      
       const result = await avliPool
         .request()
         .input("fullName", sql.VarChar, fullName)
         .query(`SELECT Oid FROM SecuritySystemUser WHERE FullName = @fullName`)
-      return result.recordset.length > 0 ? result.recordset[0].Oid : null
-    }
 
+        if (result.recordset.length > 0) {
+          return result.recordset[0].Oid
+        }
+
+      const resultHeadUser = await purchasePool
+        .request()
+        .input("fullName", sql.NVarChar, fullName)
+        .query(`SELECT headOid AS Oid FROM HeadUsers WHERE fullName = @fullName`)
+
+      return resultHeadUser.recordset.length > 0 ? resultHeadUser.recordset[0].Oid : null
+    }
+    // Kunin lahat ng approver's OIDs
     const checkedById = await getEmployeeOid(checkedByName)
     const approvedById = await getEmployeeOid(approvedByName)
     const receivedById = await getEmployeeOid(receivedByName)
