@@ -10,14 +10,12 @@ const savePrfHeader = async (prfData) => {
 
     // If departmentId is not provided in prfData, fetch it from Users_Info
     if (!departmentId) {
-
       const departmentResult = await pool
         .request()
         .input("preparedBy", prfData.preparedBy)
         .query(`
           SELECT departmentId FROM Users_Info WHERE fullName = @preparedBy
         `)
-
       if (departmentResult.recordset.length === 0) {
         throw new Error("Department ID not found.")
       }
@@ -74,21 +72,33 @@ const savePrfHeader = async (prfData) => {
           if (!employeeOid) return ""
 
           try {
+            //  Try to find in AVLI database first
             const empResult = await avliPool
               .request()
               .input("employeeOid", employeeOid)
               .query(`SELECT FullName FROM SecuritySystemUser WHERE Oid = @employeeOid`)
 
-            return empResult.recordset.length > 0 ? empResult.recordset[0].FullName : ""
+              if (empResult.recordset.length > 0) {
+                return empResult.recordset[0].FullName
+              }
+
+              //  If not found, check in HeadUsers (PurchaseRequestDB)
+              const headResult = await pool
+                .request()
+                .input("employeeOid", employeeOid)
+                .query(`
+                  SELECT fullName FROM HeadUsers WHERE headOid = @employeeOid`)
+            return headResult.recordset.length > 0 ? headResult.recordset[0].fullName : ""
           } catch (error) {
             console.error("Error fetching employee name:", error)
             return ""
           }
         }
+        
+        // Fetch lahat ng approver names  
         checkedByName = await getEmployeeName(approval.CheckedById)
         approvedByName = await getEmployeeName(approval.ApprovedById)
-        receivedByName = "Benjie L. Salvador"
-
+        receivedByName = await getEmployeeName(approval.ReceivedById)
         console.log("Retrieved approval names:", { checkedByName, approvedByName, receivedByName })
       } else {
         console.log("No approval settings found for user:", userId)
