@@ -1,4 +1,4 @@
-const { markAsReceivedService, getIsDeliveredListService  } = require("../model/markAsReceivedService")
+const { markAsReceivedService, getIsDeliveredListService, getRemarksByIdService, updateRemarksService  } = require("../model/markAsReceivedService")
 
 const markAsReceived = async (req, res) => {
   const { Id } = req.params
@@ -20,6 +20,28 @@ const markAsReceived = async (req, res) => {
   }
 }
 
+const updateRemarks = async (req, res) => {
+  try {
+    const { Id } = req.params;
+    const { remarks, dateDelivered} = req.body;
+
+    if (!remarks || !dateDelivered || !Id) {
+      return res.status(400).json({ message: "Missing remarks or ID" });
+    }
+
+    const affected = await updateRemarksService(Id, remarks, dateDelivered);
+
+    if (affected === 0) {
+      return res.status(404).json({ message: "Record not found" });
+    }
+
+    res.status(200).json({ message: "Remarks updated successfully!" });
+  } catch (error) {
+    console.error("Error updating remarks:", error);
+    res.status(500).json({ message: "Error updating remarks", error: error.message });
+  }
+};
+
 const getDeliveredList = async (req, res) => {
   try {
     const list = await getIsDeliveredListService()
@@ -36,4 +58,15 @@ const getDeliveredList = async (req, res) => {
   }
 }
 
-module.exports = { markAsReceived, getDeliveredList }
+const getRemarksById = async (req, res) => {
+  try {
+    const remarks = await getRemarksByIdService(req.params.Id)
+    if (remarks) res.json(remarks);
+    else res.status(404).json({ message: "No remarks found" });
+  } catch (error) {
+    console.error("Error fetching remarks:", error);
+    res.status(500).json({ error: "Failed to fetch remarks" });
+  }
+}
+
+module.exports = { markAsReceived, getDeliveredList, getRemarksById, updateRemarks}

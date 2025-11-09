@@ -37,49 +37,27 @@ const registerEmployee = async (departmentType, departmentId, fullName, username
     // Determine departmentId based on departmentType
     let deptId
     switch (departmentType) {
-      case "Human Resource":
+
+      case "CGS":
         deptId = 1
-        break
-      case "Information Technology":
+      break
+
+      case "QC":
         deptId = 2
-        break
-      case "Finance":
+      break
+
+      case "MMD":
         deptId = 3
-        break
-      case "Marketing":
+      break
+
+      case "WLO": 
         deptId = 4
-        break
+      break
+     
       case "Purchasing":
         deptId = 5
-        break
-      case "Production":
-        deptId = 6
-        break
-      case "Corplan":
-        deptId = 7
-      case "CGS":
-        deptId = 8
-      case "CMD":
-        deptId = 9
-        break
-      case "Audit":
-        deptId = 10
-        break
-      case "Legal": 
-        deptId = 11
-        break
-      case "Regulatory":
-        deptId = 12
-        break
-      case "Engineering":
-        deptId = 13
-        break
-      case "WLO": 
-        deptId = 14
-        break
-      case "Sales":
-        deptId = 15
-        break
+      break
+
       default:
         deptId = null
     }

@@ -24,6 +24,40 @@ const markAsReceivedService = async (Id) => {
   }
 }
 
+// Dito nag uupdate si admin para sa remarks na PRFTABLE_DETAILS
+const updateRemarksService = async (id, remarks, dateDelivered) => {
+  try {
+    const pool = await poolPurchaseRequest;
+
+    const result = await pool
+      .request()
+      .input("Id", sql.Int, id)
+      .input("Remarks", sql.VarChar(sql.MAX), remarks)
+      .input("DateDelivered", sql.DateTime, dateDelivered)
+      .query(`
+        UPDATE PRFTABLE_DETAILS
+        SET remarks = @Remarks, Datedelivered = @DateDelivered
+        WHERE Id = @Id
+      `);
+    return result.rowsAffected[0];
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getRemarksByIdService = async (Id) => {
+  try {
+    const pool = await poolPurchaseRequest;
+    const result = await pool
+      .request()
+      .input("Id", sql.Int, Id)
+      .query("SELECT remarks, DateDelivered FROM PRFTABLE_DETAILS WHERE Id = @Id");
+    return result.recordset[0] || null;
+  } catch (error) {
+    console.error("Error fetching remarks:", error);
+    throw error;
+  }
+};
 
 const getIsDeliveredListService = async () => {
   try {
@@ -41,7 +75,8 @@ const getIsDeliveredListService = async () => {
             D.StockName,
             D.UOM AS unit,
             D.QTY AS quantity,
-            D.isDelivered
+            D.isDelivered,
+            D.remarks
         FROM PRFTABLE P
         INNER JOIN PRFTABLE_DETAILS D ON P.prfId = D.PrfId
         WHERE D.isDelivered = 1
@@ -54,4 +89,4 @@ const getIsDeliveredListService = async () => {
   }
 }
 
-module.exports = { markAsReceivedService, getIsDeliveredListService }
+module.exports = { markAsReceivedService, getIsDeliveredListService, updateRemarksService, getRemarksByIdService }
