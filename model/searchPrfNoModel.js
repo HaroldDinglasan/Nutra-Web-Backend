@@ -20,9 +20,9 @@ const searchPrfByNumber = async (prfNo) => {
         WHERE prfNo = @prfNo
       `)
 
-    if (headerResult.recordset.length === 0) {
-      return { found: false, message: "PRF not found" }
-    }
+      if (headerResult.recordset.length === 0) {
+        return { found: false, message: "PRF not found" }
+      }
 
     const prfHeader = headerResult.recordset[0]
     const prfId = prfHeader.prfId
