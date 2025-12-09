@@ -1,5 +1,5 @@
 
-const { poolPurchaseRequest, poolAVLI } = require("../connectionHelper/db")
+const { poolPurchaseRequest, poolAVLI, sql } = require("../connectionHelper/db")
 
 const savePrfHeader = async (prfData) => {
   try {
@@ -45,12 +45,13 @@ const savePrfHeader = async (prfData) => {
         SELECT userID FROM Users_Info WHERE fullName = @preparedBy
       `)
 
+    let userId = null
     let checkedByName = ""
     let approvedByName = ""
     let receivedByName = ""
 
     if (userResult.recordset.length > 0) {
-      const userId = userResult.recordset[0].userID
+      userId = userResult.recordset[0].userID
       console.log("Found user ID:", userId)
 
       // Get the user's approval settings
@@ -78,23 +79,23 @@ const savePrfHeader = async (prfData) => {
               .input("employeeOid", employeeOid)
               .query(`SELECT FullName FROM SecuritySystemUser WHERE Oid = @employeeOid`)
 
-              if (empResult.recordset.length > 0) {
-                return empResult.recordset[0].FullName
-              }
+            if (empResult.recordset.length > 0) {
+              return empResult.recordset[0].FullName
+            }
 
-              //  If not found, check in HeadUsers (PurchaseRequestDB)
-              const headResult = await pool
-                .request()
-                .input("employeeOid", employeeOid)
-                .query(`
-                  SELECT fullName FROM HeadUsers WHERE headOid = @employeeOid`)
+            //  If not found, check in HeadUsers (PurchaseRequestDB)
+            const headResult = await pool
+              .request()
+              .input("employeeOid", employeeOid)
+              .query(`
+                SELECT fullName FROM HeadUsers WHERE headOid = @employeeOid`)
             return headResult.recordset.length > 0 ? headResult.recordset[0].fullName : ""
           } catch (error) {
             console.error("Error fetching employee name:", error)
             return ""
           }
         }
-        
+
         // Fetch lahat ng approver names  
         checkedByName = await getEmployeeName(approval.CheckedById)
         approvedByName = await getEmployeeName(approval.ApprovedById)
@@ -114,13 +115,14 @@ const savePrfHeader = async (prfData) => {
       .input("prfNo", prfData.prfNo)
       .input("prfDate", prfData.prfDate)
       .input("preparedBy", prfData.preparedBy)
+      .input("userId", sql.Int, userId || null) // Added UserID
       .input("departmentId", departmentId)
       .input("checkedBy", checkedByName)
       .input("approvedBy", approvedByName)
       .input("receivedBy", receivedByName)
       .query(`
-        INSERT INTO PRFTABLE (prfId, prfNo, prfDate, preparedBy, departmentId, checkedBy, approvedBy, receivedBy)
-        VALUES (@prfId, @prfNo, @prfDate, @preparedBy, @departmentId, @checkedBy, @approvedBy, @receivedBy);
+        INSERT INTO PRFTABLE (prfId, prfNo, prfDate, preparedBy, UserID, departmentId, checkedBy, approvedBy, receivedBy)
+        VALUES (@prfId, @prfNo, @prfDate, @preparedBy, @userId, @departmentId, @checkedBy, @approvedBy, @receivedBy)
       `)
 
     console.log("PRF header saved with approval names:", { checkedByName, approvedByName, receivedByName })

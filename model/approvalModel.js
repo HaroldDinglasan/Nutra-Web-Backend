@@ -202,10 +202,25 @@ const populateAssignedApprovals = async (userId, checkedByName, approvedByName, 
   }
 }
 
+// GET EMAILS FROM AssignedApprovals
+const getAssignedEmails = async (userId) => {
+  const pool = await poolPurchaseRequest;
+  const result = await pool
+  .request()
+  .input("UserID", sql.Int, userId)
+  .query(`
+    SELECT CheckedByEmail, ApprovedByEmail, ReceivedByEmail FROM AssignedApprovals 
+    WHERE UserID = @UserID AND ApplicType = 'PRF'
+    `);
+
+  return result.recordset[0] || null;
+}
+
 module.exports = {
   createApproval,
   getApprovalById,
   getApprovalsByUserId,
   updateApproval,
-  populateAssignedApprovals
+  populateAssignedApprovals,
+  getAssignedEmails
 }

@@ -1,3 +1,4 @@
+const { NVarChar } = require("mssql")
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
 
 // Check if user already exists by username or fullName
@@ -25,7 +26,7 @@ const checkUserExists = async (username, fullName) => {
 }
 
 // Register Users in PurchaseRequest Database (Plain Text Passwords)
-const registerEmployee = async (departmentType, departmentId, fullName, username, password) => {
+const registerEmployee = async (departmentType, departmentId, fullName, username, password, outlookEmail) => {
   try {
     
     // Check if user already exists
@@ -58,6 +59,10 @@ const registerEmployee = async (departmentType, departmentId, fullName, username
         deptId = 5
       break
 
+      case "Approvers":
+        deptId = 6
+      break
+
       default:
         deptId = null
     }
@@ -70,10 +75,11 @@ const registerEmployee = async (departmentType, departmentId, fullName, username
       .input("username", sql.NVarChar, username)
       .input("password", sql.NVarChar, password)
       .input("departmentId", sql.Int, deptId)
+      .input("outlookEmail", sql.NVarChar, outlookEmail || null)
       .query(`
-        INSERT INTO Users_Info (departmentType, fullName, username, password, isActive, createAt, departmentId) 
+        INSERT INTO Users_Info (departmentType, fullName, username, password, isActive, createAt, departmentId, outlookEmail) 
         OUTPUT INSERTED.userID
-        VALUES (@departmentType, @fullName, @username, @password, 1, GETDATE(), @departmentId);
+        VALUES (@departmentType, @fullName, @username, @password, 1, GETDATE(), @departmentId, @outlookEmail);
       `)
 
     const userID = result.recordset[0].userID
@@ -111,7 +117,8 @@ const loginUser = async (username, password) => {
           L.username, 
           U.fullName, 
           U.departmentType,
-          U.departmentId
+          U.departmentId,
+          U.outlookEmail
         FROM Login L
         INNER JOIN Users_Info U ON L.userID = U.userID
         WHERE L.username = @username AND L.password = @password;

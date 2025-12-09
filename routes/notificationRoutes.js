@@ -3,8 +3,38 @@ const { sendApprovalNotifications } = require("../lib/email-service")
 const { getApprovalById } = require("../model/approvalModel")
 const { getPrfById, getPrfByNumber, getLatestPrfByUser, getPrfWithDepartment } = require("../model/prfDataModel")
 const { getEmployeeByOid } = require("../model/employeeModel")
+const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
 
 const router = express.Router()
+
+// Function para kunin yung mga fullname ng mga Approvers
+// Para magdisplay ng fixed sa Outlook email notification
+const getPrfApproverNames = async (prfId) => {
+  try {
+    const pool = await poolPurchaseRequest
+    const result = await pool
+      .request()
+      .input("prfId", sql.UniqueIdentifier, prfId)
+      .query(`
+        SELECT checkedBy, approvedBy, receivedBy 
+        FROM PRFTABLE 
+        WHERE prfId = @prfId
+      `)
+
+    if (result.recordset.length > 0) {
+      const names = result.recordset[0]
+      return {
+        checkedBy: names.checkedBy || "N/A",
+        approvedBy: names.approvedBy || "N/A",
+        receivedBy: names.receivedBy || "N/A",
+      }
+    }
+    return { checkedBy: "N/A", approvedBy: "N/A", receivedBy: "N/A" }
+  } catch (error) {
+    console.error("[v0] Error fetching PRF approver names:", error)
+    return { checkedBy: "N/A", approvedBy: "N/A", receivedBy: "N/A" }
+  }
+}
 
 // Send notifications for a specific approval
 router.post("/notifications/send/:approvalId", async (req, res) => {
@@ -126,7 +156,7 @@ router.post("/notifications/send-direct", async (req, res) => {
       smtpPassword,
     } = req.body
 
-    console.log("📦 Received PRF Data:", { prfId, prfNo, preparedBy, company })
+    const prfApproverNames = prfId ? await getPrfApproverNames(prfId) : null
 
     // Inclue email at full name
     const approvalData = {
@@ -144,9 +174,9 @@ router.post("/notifications/send-direct", async (req, res) => {
       preparedBy: preparedBy || "System User",
       company: company || "NutraTech Biopharma, Inc",
       replyTo: senderEmail,
-      CheckedByFullName: checkedByName || "N/A",
-      ApprovedByFullName: approvedByName || "N/A",
-      ReceivedByFullName: receivedByName || "N/A",
+      CheckedByFullName: prfApproverNames?.checkedBy || checkedByName || "N/A", // dinagdag para hindi mawala ang fullnames sa Outlook notification
+      ApprovedByFullName: prfApproverNames?.approvedBy || approvedByName || "N/A",
+      ReceivedByFullName: prfApproverNames?.receivedBy || receivedByName || "N/A",
     }
 
     // Try to get PRF data from database (priority: by prfId → prfNo → latest by user)
@@ -193,18 +223,20 @@ router.post("/notifications/send-direct", async (req, res) => {
         departmentType: dbPrfData.departmentType,
         company: company || "NutraTech Biopharma, Inc",
         replyTo: senderEmail,
-        CheckedByFullName: checkedByName || "N/A",
-        ApprovedByFullName: approvedByName || "N/A",
-        ReceivedByFullName: receivedByName || "N/A",
+        CheckedByFullName: prfApproverNames?.checkedBy || checkedByName || "N/A", // dinagdag para hindi mawala ang fullnames sa Outlook notification
+        ApprovedByFullName: prfApproverNames?.approvedBy || approvedByName || "N/A",
+        ReceivedByFullName: prfApproverNames?.receivedBy || receivedByName || "N/A",
       }
       console.log("🔗 Using merged PRF data:", prfData)
     }
 
-    // Final log bago magsend ang email
-    console.log("✉️ Final PRF data before sending emails:", prfData)
-
-    // Send notifications - pass both approvalData (for emails) and prfData (for template content)
-    const results = await sendApprovalNotifications(approvalData, prfData, senderEmail, smtpPassword)
+    const results = await sendApprovalNotifications(
+      approvalData,
+      prfData,
+      senderEmail,      
+      smtpPassword,     
+      ["checkBy"] // sa checkBy user lang muna unang mag nonotif ang Outlook notification
+    );
 
     res.status(200).json({
       success: true,
