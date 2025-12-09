@@ -109,7 +109,7 @@ const rejectPrfByHeads = async (prfId, userFullName) => {
 
     return {
       success: true,
-      message: `PRF rejected successfully. isCancel flag set to 1.`,
+      message:`PRF rejected successfully`,
       data: {
         prfId,
         isCancel: 1,

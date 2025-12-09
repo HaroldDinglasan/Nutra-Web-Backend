@@ -2,14 +2,14 @@ const { registerEmployee, loginUser } = require("../model/userModel")
 
 // Register User
 const registerUser = async (req, res) => {
-  const { departmentType, departmentId, fullName, username, password } = req.body
+  const { departmentType, departmentId, fullName, username, password, outlookEmail } = req.body
 
-  if (!departmentType || !fullName || !username || !password) {
+  if (!departmentType || !fullName || !username || !password || outlookEmail) {
     return res.status(400).json({ message: "All fields are required!" })
   }
 
   try {
-    const result = await registerEmployee(departmentType, departmentId, fullName, username, password)
+    const result = await registerEmployee(departmentType, departmentId, fullName, username, password, outlookEmail)
 
     // Check if registration was successful
     if (result.success) {
