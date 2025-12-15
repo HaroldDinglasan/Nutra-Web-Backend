@@ -1,4 +1,4 @@
-const { getPrfList, getPrfListByUser, getPrfByNumber } = require("../model/prfListModel")
+const { getPrfList, getPrfListByUser, getPrfByNumber, updatePrfListStatus } = require("../model/prfListModel")
 
 const fetchPrfList = async (req, res) => {
   try {
@@ -41,4 +41,38 @@ const fetchPrfByNumber = async (req, res) => {
   }
 };
 
-module.exports = { fetchPrfList, fetchPrfListByUser, fetchPrfByNumber }
+const getPrfCurrentStatus = async (req, res) => {
+  try {
+    const { prfId } = req.params;
+
+    if (!prfId) {
+      return res.status(400).json({
+        success: false,
+        message: "PRF ID is required"
+      });
+    }
+
+    const result = await updatePrfListStatus(prfId);
+
+    if (result.success) {
+      res.status(200).json({
+        success: true,
+        status: result.status,
+        data: result.data
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: result.error
+      });
+    }
+  } catch (error) {
+    console.error("Error getting PRF status:", error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+module.exports = { fetchPrfList, fetchPrfListByUser, fetchPrfByNumber, getPrfCurrentStatus }
