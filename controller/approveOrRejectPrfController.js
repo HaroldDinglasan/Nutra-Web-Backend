@@ -248,7 +248,7 @@ const approvePrfController = async (req, res) => {
             prfId: prfData.prfId,
             prfDate: prfData.prfDate,
             preparedBy: prfData.preparedBy,
-            departmentType: prfData.departmentType,
+            departmentCharge: prfData.departmentCharge || prfData.departmentType, // <CHANGE> Pass departmentCharge to email
             company: prfData.company || "NutraTech Biopharma, Inc",
             CheckedByFullName: checkedByName || prfData.checkedBy || userFullName || "N/A",
             ApprovedByFullName: approvedByName || approverDetails.approvedByName || "N/A",
@@ -357,7 +357,7 @@ const approvePrfController = async (req, res) => {
             prfId: prfData.prfId,
             prfDate: prfData.prfDate,
             preparedBy: prfData.preparedBy,
-            departmentType: prfData.departmentType,
+            departmentCharge: prfData.departmentCharge || prfData.departmentType, // <CHANGE> Pass departmentCharge to email
             company: prfData.company || "NutraTech Biopharma, Inc",
             CheckedByFullName: checkedByName || prfData.checkedBy || "N/A",
             ApprovedByFullName: approvedByName || userFullName || "N/A",

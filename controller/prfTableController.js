@@ -4,6 +4,9 @@ const { savePrfHeader, updatePrfApprovalNames } = require("../model/prfTableMode
 const savePrf = async (req, res) => {
   try {
     const prfHeader = req.body
+
+    console.log("[v0] Saving PRF with departmentCharge:", prfHeader.departmentCharge)
+
     // Save PRF header
     const prfId = await savePrfHeader(prfHeader)
     res.status(200).json({

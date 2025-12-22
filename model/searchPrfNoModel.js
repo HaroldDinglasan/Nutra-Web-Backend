@@ -15,7 +15,7 @@ const searchPrfByNumber = async (prfNo) => {
       .request()
       .input("prfNo", searchPrfNo)
       .query(`
-        SELECT prfId, prfNo, prfDate, preparedBy, departmentId, isCancel, checkedBy, approvedBy, receivedBy
+        SELECT prfId, prfNo, prfDate, preparedBy, departmentId, isCancel, checkedBy, approvedBy, receivedBy, departmentCharge
         FROM PRFTABLE 
         WHERE prfNo = @prfNo
       `)
