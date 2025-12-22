@@ -96,7 +96,7 @@ const savePrfHeader = async (prfData) => {
           }
         }
 
-        // Fetch lahat ng approver names  
+        // Fetch lahat ng approver names
         checkedByName = await getEmployeeName(approval.CheckedById)
         approvedByName = await getEmployeeName(approval.ApprovedById)
         receivedByName = await getEmployeeName(approval.ReceivedById)
@@ -107,6 +107,8 @@ const savePrfHeader = async (prfData) => {
     } else {
       console.log("User not found in Users_Info table:", prfData.preparedBy)
     }
+
+    console.log("[v0] Inserting PRF with departmentCharge:", prfData.departmentCharge)
 
     // Insert ng prf header details
     await pool
@@ -120,12 +122,18 @@ const savePrfHeader = async (prfData) => {
       .input("checkedBy", checkedByName)
       .input("approvedBy", approvedByName)
       .input("receivedBy", receivedByName)
+      .input("departmentCharge", sql.VarChar(100), prfData.departmentCharge || null) // Add departmentCharge parameter
       .query(`
-        INSERT INTO PRFTABLE (prfId, prfNo, prfDate, preparedBy, UserID, departmentId, checkedBy, approvedBy, receivedBy)
-        VALUES (@prfId, @prfNo, @prfDate, @preparedBy, @userId, @departmentId, @checkedBy, @approvedBy, @receivedBy)
+        INSERT INTO PRFTABLE (prfId, prfNo, prfDate, preparedBy, UserID, departmentId, checkedBy, approvedBy, receivedBy, departmentCharge)
+        VALUES (@prfId, @prfNo, @prfDate, @preparedBy, @userId, @departmentId, @checkedBy, @approvedBy, @receivedBy, @departmentCharge)
       `)
 
-    console.log("PRF header saved with approval names:", { checkedByName, approvedByName, receivedByName })
+    console.log("✅ PRF header saved with approval names and department charge:", {
+      checkedByName,
+      approvedByName,
+      receivedByName,
+      departmentCharge: prfData.departmentCharge,
+    })
     return prfId
   } catch (error) {
     console.error("Database error:", error)

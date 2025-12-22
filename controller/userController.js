@@ -4,8 +4,12 @@ const { registerEmployee, loginUser } = require("../model/userModel")
 const registerUser = async (req, res) => {
   const { departmentType, departmentId, fullName, username, password, outlookEmail } = req.body
 
-  if (!departmentType || !fullName || !username || !password || outlookEmail) {
+  if (!departmentType || !fullName || !username || !password) {
     return res.status(400).json({ message: "All fields are required!" })
+  }
+
+  if (departmentType !== "Approvers" && !outlookEmail) {
+    return res.status(400).json({ message: "Outlook email is required for this department!" })
   }
 
   try {

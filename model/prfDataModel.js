@@ -124,6 +124,7 @@ const getPrfWithDepartment = async (prfId) => {
           p.prfDate,
           p.preparedBy,
           p.departmentId,
+          p.departmentCharge,
           u.departmentType AS departmentType
         FROM PRFTABLE p
         LEFT JOIN Users_Info u
@@ -133,7 +134,7 @@ const getPrfWithDepartment = async (prfId) => {
 
     return result.recordset[0] || null;
   } catch (error) {
-    console.error("Error getting PRF with department:", error);
+    console.error("Error getting PRF with department:", error)
     throw error;
   }
 };
