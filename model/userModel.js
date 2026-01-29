@@ -39,28 +39,76 @@ const registerEmployee = async (departmentType, departmentId, fullName, username
     let deptId
     switch (departmentType) {
 
-      case "CGS":
+      case "PRODUCTION":
         deptId = 1
       break
 
-      case "QC":
+      case "CGS":
         deptId = 2
       break
 
-      case "MMD":
+      case "CMD":
         deptId = 3
       break
 
-      case "WLO": 
+      case "AUDIT": 
         deptId = 4
       break
      
-      case "Purchasing":
+      case "LEGAL":
         deptId = 5
       break
 
       case "Approvers":
         deptId = 6
+      break
+
+      case "LEGAL":
+        deptId = 8
+      break
+
+      case "FINANCE":
+        deptId = 9
+      break
+
+      case "HR":
+        deptId = 10
+      break
+
+      case "MARKETING":
+        deptId = 11
+      break
+
+      case "REGULATORY":
+        deptId = 12
+      break
+
+      case "PURCHASING":
+        deptId = 13
+      break
+
+      case "WLO":
+        deptId = 14
+      break
+
+      case "ENGINEERING":
+        deptId = 15
+      break
+
+      case "SALES":
+        deptId = 16
+      break
+
+      case "CORPLAN":
+        deptId = 17
+      break
+
+      case "WLO":
+        deptId = 18
+      break
+
+      case "MMD":
+        deptId = 19
       break
 
       default:
