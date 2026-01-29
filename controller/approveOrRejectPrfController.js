@@ -4,10 +4,12 @@ const { getPrfWithDepartment } = require("../model/prfDataModel")
 const { getEmployeeByOid } = require("../model/employeeModel")
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
 
-// Kinukuha yung outlook email ng requestor 
+// Get requestor (PREPARED BY) email
 const getRequestorEmail = async (prfId) => {
   try {
+    // Connection to database
     const pool = await poolPurchaseRequest
+    // Get requestor email and name
     const result = await pool
       .request()
       .input("prfId", sql.UniqueIdentifier, prfId)
@@ -18,6 +20,7 @@ const getRequestorEmail = async (prfId) => {
         WHERE P.prfId = @prfId
       `)
 
+    // Return email and name if found
     if (result.recordset.length > 0) {
       return {
         email: result.recordset[0].outlookEmail,
@@ -31,77 +34,12 @@ const getRequestorEmail = async (prfId) => {
   }
 }
 
-// Kinukuha Approver Details para i send sa Outlook Notification using UserID
+// Get Approver details (ApprovedBy)
 const getApproverDetails = async (prfId) => {
   try {
     const pool = await poolPurchaseRequest
 
-    // Get UserID from PRFTABLE
-    const prfResult = await pool
-      .request()
-      .input("prfId", sql.UniqueIdentifier, prfId)
-      .query(`SELECT UserID, prfNo FROM PRFTABLE WHERE prfId = @prfId`)
-
-    if (prfResult.recordset.length === 0) {
-      console.error(" PRF not found for ID:", prfId)
-      return null
-    }
-
-    const userId = prfResult.recordset[0].UserID
-    const prfNo = prfResult.recordset[0].prfNo
-
-    if (!userId) {
-      console.error(" UserID is NULL for PRF:", prfId)
-      return null
-    }
-
-    // Get approval assignments from AssignedApprovals
-    const approvalsResult = await pool
-      .request()
-      .input("userId", sql.Int, userId)
-      .query(`
-        SELECT 
-          ApprovedByEmail,
-          ApprovedById
-        FROM AssignedApprovals 
-        WHERE UserID = @userId AND ApplicType = 'PRF'
-      `)
-
-    if (approvalsResult.recordset.length === 0) {
-      console.error(" No approvals found for UserID:", userId)
-      return null
-    }
-
-    const approvalData = approvalsResult.recordset[0]
-    console.log(" Found approval record with ApprovedByEmail:", approvalData.ApprovedByEmail)
-
-    // Kinukuha yung employee full name for ApprovedBy
-    const approvedByEmployee = approvalData.ApprovedById ? await getEmployeeByOid(approvalData.ApprovedById) : null
-    console.log(" ApprovedBy employee:", approvedByEmployee?.FullName || "NOT FOUND")
-
-    if (!approvalData.ApprovedByEmail) {
-      console.warn("  WARNING: ApprovedByEmail is NULL for UserID:", userId)
-    }
-
-    return {
-      approvedByEmail: approvalData.ApprovedByEmail,
-      approvedByName: approvedByEmployee?.FullName || "N/A",
-      approvedById: approvalData.ApprovedById,
-      userId,
-    }
-  } catch (error) {
-    console.error(" Error in getApproverDetails:", error.message)
-    return null
-  }
-}
-
-// Kinukuha Receiver Details para i send sa Outlook Notification using UserID
-const getReceiverDetails = async (prfId) => {
-  try {
-    const pool = await poolPurchaseRequest
-    console.log(" getReceiverDetails called for prfId:", prfId)
-
-    // Get UserID from PRFTABLE
+    // Get UserID and PRF No from PRFTABLE
     const prfResult = await pool
       .request()
       .input("prfId", sql.UniqueIdentifier, prfId)
@@ -122,7 +60,74 @@ const getReceiverDetails = async (prfId) => {
       return null
     }
 
-    // Get approval assignments from AssignedApprovals
+    // Get ApprovedBy email and ID from AssignedApprovals
+    const approvalsResult = await pool
+      .request()
+      .input("userId", sql.Int, userId)
+      .query(`
+        SELECT 
+          ApprovedByEmail,
+          ApprovedById
+        FROM AssignedApprovals 
+        WHERE UserID = @userId AND ApplicType = 'PRF'
+      `)
+
+    if (approvalsResult.recordset.length === 0) {
+      console.error(" No approvals found for UserID:", userId)
+      return null
+    }
+
+    const approvalData = approvalsResult.recordset[0]
+    console.log(" Found approval record with ApprovedByEmail:", approvalData.ApprovedByEmail)
+
+    // Get full name of approver
+    const approvedByEmployee = approvalData.ApprovedById ? await getEmployeeByOid(approvalData.ApprovedById) : null
+
+    console.log(" ApprovedBy employee:", approvedByEmployee?.FullName || "NOT FOUND")
+
+    if (!approvalData.ApprovedByEmail) {
+      console.warn("  WARNING: ApprovedByEmail is NULL for UserID:", userId)
+    }
+
+    return {
+      approvedByEmail: approvalData.ApprovedByEmail,
+      approvedByName: approvedByEmployee?.FullName || "N/A",
+      approvedById: approvalData.ApprovedById,
+      userId,
+    }
+  } catch (error) {
+    console.error(" Error in getApproverDetails:", error.message)
+    return null
+  }
+}
+
+// Get Receiver details (ReceivedBy)
+const getReceiverDetails = async (prfId) => {
+  try {
+    const pool = await poolPurchaseRequest
+
+    // Get UserID and PRF No from PRFTABLE
+    const prfResult = await pool
+      .request()
+      .input("prfId", sql.UniqueIdentifier, prfId)
+      .query(`SELECT UserID, prfNo FROM PRFTABLE WHERE prfId = @prfId`)
+
+    if (prfResult.recordset.length === 0) {
+      console.error(" PRF not found for ID:", prfId)
+      return null
+    }
+
+    const userId = prfResult.recordset[0].UserID
+    const prfNo = prfResult.recordset[0].prfNo
+
+    console.log(" Looking for approvals - PRF:", prfNo, "UserID:", userId)
+
+    if (!userId) {
+      console.error(" UserID is NULL for PRF:", prfId)
+      return null
+    }
+
+    // Get ReceivedBy email and ID from AssignedApprovals
     const approvalsResult = await pool
       .request()
       .input("userId", sql.Int, userId)
@@ -142,7 +147,7 @@ const getReceiverDetails = async (prfId) => {
     const approvalData = approvalsResult.recordset[0]
     console.log(" Found approval record with ReceivedByEmail:", approvalData.ReceivedByEmail)
 
-    // Get employee full name for ReceivedBy
+    // Get full name of receiver
     const receivedByEmployee = approvalData.ReceivedById ? await getEmployeeByOid(approvalData.ReceivedById) : null
     console.log(" ReceivedBy employee:", receivedByEmployee?.FullName || "NOT FOUND")
 
@@ -162,6 +167,8 @@ const getReceiverDetails = async (prfId) => {
   }
 }
 
+// MAIN CONTROLLER: APPROVE PRF 
+// Handles check, approve, and receive actions 
 const approvePrfController = async (req, res) => {
   try {
     const { prfId } = req.params
@@ -465,11 +472,22 @@ const approvePrfController = async (req, res) => {
   }
 }
 
+// Controller for rejecting a PRF and sending notification to the requestor 
 const rejectPrfController = async (req, res) => {
   try {
+    // Get PRF ID from URL and other data from request body
     const { prfId } = req.params
-    const { userFullName, rejectionReason } = req.body
+    const { userFullName, rejectionReason, senderEmail, smtpPassword } = req.body
 
+    // Log received data for debugging
+    console.log(" Reject controller received:", {
+      prfId,
+      userFullName,
+      rejectionReason,
+      bodyKeys: Object.keys(req.body),
+    })
+
+    // Check if PRF ID is provided
     if (!prfId) {
       return res.status(400).json({
         success: false,
@@ -477,21 +495,74 @@ const rejectPrfController = async (req, res) => {
       })
     }
 
+    // Update PRF status to rejected in the database
     const result = await rejectPrfByHeads(prfId, userFullName, rejectionReason)
 
     if (result.success) {
+      // Try to send rejection email notification
+      try {
+
+        // Get PRF details for email
+        const prfData = await getPrfWithDepartment(prfId)
+        if (!prfData) {
+          console.warn(" Could not fetch PRF data for rejection notification")
+          return res.status(200).json({
+            success: true,
+            message: result.message,
+            data: result.data,
+          })
+        }
+
+        // Get requestor email and name
+        const requestorDetails = await getRequestorEmail(prfId)
+        if (requestorDetails && requestorDetails.email) {
+          console.log(" Sending 'prfRejected' notification to requestor:", requestorDetails.email)
+
+          // Send rejection email to requestor 
+          const prfRejectedNotification = await sendEmail(
+            requestorDetails.email,
+            "prfRejected",
+            {
+              prfNo: prfData.prfNo,
+              prfId: prfData.prfId,
+              preparedBy: requestorDetails.name,
+              rejectionReason: rejectionReason,
+              rejectedByFullName: userFullName || "N/A",
+              company: prfData.company || "NutraTech Biopharma, Inc",
+            },
+            senderEmail,
+            smtpPassword,
+          )
+
+          // Log result of email sending
+          if (prfRejectedNotification.success) {
+            console.log(" Successfully sent prfRejected notification to requestor")
+          } else {
+            console.warn(" Failed to send prfRejected notification:", prfRejectedNotification.error)
+          }
+        } else {
+          console.warn(" Could not retrieve requestor email for rejection notification")
+        }
+      } catch (notificationError) {
+        // Catch email/notification errors but still return success for rejection
+        console.error(" Error sending rejection notification:", notificationError.message)
+      }
+
+      // Return success response for PRF rejection
       res.status(200).json({
         success: true,
         message: result.message,
         data: result.data,
       })
     } else {
+      // If database reject failed
       res.status(500).json({
         success: false,
         message: result.error,
       })
     }
   } catch (error) {
+    // Catch any unexpected errors in the controller
     console.error(" Error in rejection endpoint:", error.message, error.stack)
     res.status(500).json({
       success: false,
