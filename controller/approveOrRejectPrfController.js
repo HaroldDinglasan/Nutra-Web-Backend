@@ -1,4 +1,3 @@
-
 const { approvePrfByHeads, rejectPrfByHeads } = require("../model/approveOrRejectPrfService")
 const { sendApprovalNotifications, sendEmail } = require("../lib/email-service")
 const { getPrfWithDepartment } = require("../model/prfDataModel")
@@ -50,8 +49,6 @@ const getApproverDetails = async (prfId) => {
 
     const userId = prfResult.recordset[0].UserID
     const prfNo = prfResult.recordset[0].prfNo
-
-    console.log(" Looking for approvals - PRF:", prfNo, "UserID:", userId)
 
     if (!userId) {
       console.error(" UserID is NULL for PRF:", prfId)
@@ -248,7 +245,7 @@ const approvePrfController = async (req, res) => {
             prfId: prfData.prfId,
             prfDate: prfData.prfDate,
             preparedBy: prfData.preparedBy,
-            departmentCharge: prfData.departmentCharge || prfData.departmentType, // <CHANGE> Pass departmentCharge to email
+            departmentCharge: prfData.departmentCharge || prfData.departmentType, // Pass departmentCharge to email
             company: prfData.company || "NutraTech Biopharma, Inc",
             CheckedByFullName: checkedByName || prfData.checkedBy || userFullName || "N/A",
             ApprovedByFullName: approvedByName || approverDetails.approvedByName || "N/A",
@@ -357,7 +354,7 @@ const approvePrfController = async (req, res) => {
             prfId: prfData.prfId,
             prfDate: prfData.prfDate,
             preparedBy: prfData.preparedBy,
-            departmentCharge: prfData.departmentCharge || prfData.departmentType, // <CHANGE> Pass departmentCharge to email
+            departmentCharge: prfData.departmentCharge || prfData.departmentType, // Pass departmentCharge to email
             company: prfData.company || "NutraTech Biopharma, Inc",
             CheckedByFullName: checkedByName || prfData.checkedBy || "N/A",
             ApprovedByFullName: approvedByName || userFullName || "N/A",
@@ -471,7 +468,7 @@ const approvePrfController = async (req, res) => {
 const rejectPrfController = async (req, res) => {
   try {
     const { prfId } = req.params
-    const { userFullName } = req.body
+    const { userFullName, rejectionReason } = req.body
 
     if (!prfId) {
       return res.status(400).json({
@@ -480,7 +477,7 @@ const rejectPrfController = async (req, res) => {
       })
     }
 
-    const result = await rejectPrfByHeads(prfId, userFullName)
+    const result = await rejectPrfByHeads(prfId, userFullName, rejectionReason)
 
     if (result.success) {
       res.status(200).json({
@@ -495,7 +492,7 @@ const rejectPrfController = async (req, res) => {
       })
     }
   } catch (error) {
-    console.error("Error in rejection endpoint:", error.message)
+    console.error(" Error in rejection endpoint:", error.message, error.stack)
     res.status(500).json({
       success: false,
       message: error.message,

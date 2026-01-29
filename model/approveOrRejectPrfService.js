@@ -40,7 +40,7 @@ const approvePrfByHeads = async (prfId, actionType, userFullName) => {
       WHERE prfId = @prfId
     `
 
-    console.log("[v0] Executing approval query:", {
+    console.log(" Executing approval query:", {
       prfId,
       actionType: normalizedActionType,
       userFullName,
@@ -55,7 +55,6 @@ const approvePrfByHeads = async (prfId, actionType, userFullName) => {
       .query(query)
 
     const rowsAffected = result.rowsAffected[0] || 0
-    console.log("[v0] Query result - Rows affected:", rowsAffected)
 
     if (rowsAffected === 0) {
       throw new Error(`No PRF record found with ID: ${prfId}`)
@@ -73,7 +72,7 @@ const approvePrfByHeads = async (prfId, actionType, userFullName) => {
       },
     }
   } catch (error) {
-    console.error("[v0] Error updating PRF approval status:", error.message, error.stack)
+    console.error(" Error updating PRF approval status:", error.message, error.stack)
     return {
       success: false,
       error: error.message,
@@ -81,27 +80,39 @@ const approvePrfByHeads = async (prfId, actionType, userFullName) => {
   }
 }
 
-const rejectPrfByHeads = async (prfId, userFullName) => {
+const rejectPrfByHeads = async (prfId, userFullName, rejectionReason) => {
   try {
     const pool = await poolPurchaseRequest
+
+    console.log(" rejectPrfByHeads input parameters:", {
+      prfId,
+      userFullName,
+      rejectionReason,
+      rejectionReasonType: typeof rejectionReason,
+      rejectionReasonLength: rejectionReason ? rejectionReason.length : 0,
+    })
 
     const query = `
       UPDATE PRFTABLE 
       SET 
-        isCancel = 1
+        isCancel = 1,
+        rejectionReason = @rejectionReason
       WHERE prfId = @prfId
     `
 
     console.log(" Executing rejection query:", {
       prfId,
       userFullName,
+      rejectionReason,
       isCancel: 1,
     })
 
-    const result = await pool.request().input("prfId", sql.UniqueIdentifier, prfId).query(query)
+    const request = pool.request()
+    request.input("prfId", sql.UniqueIdentifier, prfId)
+    request.input("rejectionReason", sql.VarChar(sql.MAX), rejectionReason && rejectionReason.trim() ? rejectionReason : "No reason provided")
+    const result = await request.query(query)
 
     const rowsAffected = result.rowsAffected[0] || 0
-    console.log(" Query result - Rows affected:", rowsAffected)
 
     if (rowsAffected === 0) {
       throw new Error(`No PRF record found with ID: ${prfId}`)
@@ -113,6 +124,7 @@ const rejectPrfByHeads = async (prfId, userFullName) => {
       data: {
         prfId,
         isCancel: 1,
+        rejectionReason,
         userFullName,
         rowsAffected,
       },
@@ -125,7 +137,5 @@ const rejectPrfByHeads = async (prfId, userFullName) => {
     }
   }
 }
-
-
 
 module.exports = { approvePrfByHeads, rejectPrfByHeads }
