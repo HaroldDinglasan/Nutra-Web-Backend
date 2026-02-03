@@ -4,7 +4,7 @@ const markAsReceived = async (req, res) => {
   const { Id } = req.params
 
   try {
-    console.log("[v0] Marking item as received - Id:", Id)
+    console.log(" Marking item as received - Id:", Id)
     const result = await markAsReceivedService(Id)
 
     res.status(200).json({
@@ -25,11 +25,15 @@ const updateRemarks = async (req, res) => {
     const { Id } = req.params;
     const { remarks, dateDelivered} = req.body;
 
-    if (!remarks || !dateDelivered || !Id) {
+    if (!Id) {
       return res.status(400).json({ message: "Missing remarks or ID" });
     }
 
-    const affected = await updateRemarksService(Id, remarks, dateDelivered);
+    // Allow empty remarks and Date Delivered
+    const safeRemarks = remarks && remarks.trim() !== ""? remarks : null;
+    const safeDateDelivered = dateDelivered || null;
+
+    const affected = await updateRemarksService(Id, safeRemarks, safeDateDelivered);
 
     if (affected === 0) {
       return res.status(404).json({ message: "Record not found" });

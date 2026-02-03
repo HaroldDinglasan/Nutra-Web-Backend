@@ -95,7 +95,7 @@ const rejectPrfByHeads = async (prfId, userFullName, rejectionReason) => {
     const query = `
       UPDATE PRFTABLE 
       SET 
-        isCancel = 1,
+        isReject = 1,
         rejectionReason = @rejectionReason
       WHERE prfId = @prfId
     `
@@ -104,7 +104,7 @@ const rejectPrfByHeads = async (prfId, userFullName, rejectionReason) => {
       prfId,
       userFullName,
       rejectionReason,
-      isCancel: 1,
+      isReject: 1,
     })
 
     const request = pool.request()
@@ -123,7 +123,7 @@ const rejectPrfByHeads = async (prfId, userFullName, rejectionReason) => {
       message:`PRF rejected successfully`,
       data: {
         prfId,
-        isCancel: 1,
+        isReject: 1,
         rejectionReason,
         userFullName,
         rowsAffected,

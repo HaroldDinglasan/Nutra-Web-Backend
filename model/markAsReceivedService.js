@@ -10,7 +10,10 @@ const markAsReceivedService = async (Id) => {
       .input("Id", sql.Int, Id)
       .query(`
         UPDATE PRFTABLE_DETAILS
-        SET isDelivered = 1, isPending = 0, status = 'Received'
+        SET 
+          isDelivered = 1, 
+          isPending = 0, 
+          status = 'Received'
         WHERE Id = @Id
       `);
 
@@ -36,7 +39,9 @@ const updateRemarksService = async (id, remarks, dateDelivered) => {
       .input("DateDelivered", sql.DateTime, dateDelivered)
       .query(`
         UPDATE PRFTABLE_DETAILS
-        SET remarks = @Remarks, Datedelivered = @DateDelivered
+        SET 
+          remarks = @Remarks, 
+          Datedelivered = @DateDelivered
         WHERE Id = @Id
       `);
     return result.rowsAffected[0];
