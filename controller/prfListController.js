@@ -1,4 +1,4 @@
-const { getPrfList, getPrfListByUser, getPrfByNumber, updatePrfListStatus } = require("../model/prfListModel")
+const { getPrfList, getPrfListByUser, getPrfByNumber, updatePrfListStatus } = require("../model/prfListService")
 
 const fetchPrfList = async (req, res) => {
   try {

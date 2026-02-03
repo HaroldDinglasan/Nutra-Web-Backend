@@ -12,6 +12,7 @@ const getPrfList = async () => {
           p.preparedBy, 
           p.prfDate, 
           p.isCancel AS prfIsCancel,  
+          p.isReject,                 -- ✅ Added
           p.approvedBy,
           p.approvedBy_Status,
           p.receivedBy_Status,
@@ -24,10 +25,17 @@ const getPrfList = async () => {
           d.QTY as quantity,
           d.UOM as unit,
           d.dateNeeded,
+          d.DateDelivered,
           d.isCancel as detailsIsCancel
         FROM PRFTABLE p
         LEFT OUTER JOIN PRFTABLE_DETAILS d ON p.prfId = d.PrfId
-        GROUP BY p.prfId, p.prfNo, p.preparedBy, p.prfDate, p.isCancel, p.approvedBy, p.approvedBy_Status, p.receivedBy_Status, p.checkedBy_Status, d.StockName, d.Id, d.status, d.isDelivered, d.isPending, d.QTY, d.UOM, d.dateNeeded, d.isCancel
+        GROUP BY 
+        p.prfId, p.prfNo, p.preparedBy, p.prfDate, 
+        p.isCancel, p.isReject, p.approvedBy, p.approvedBy_Status, 
+        p.receivedBy_Status, p.checkedBy_Status, 
+        d.StockName, d.Id, d.status, d.isDelivered, 
+        d.DateDelivered, d.isPending, d.QTY, d.UOM, d.dateNeeded,
+        d.isCancel
         ORDER BY p.prfDate DESC
       `)
 
@@ -52,6 +60,7 @@ const getPrfListByUser = async (username) => {
           p.preparedBy, 
           p.prfDate, 
           p.isCancel AS prfIsCancel,
+          p.isReject,                 -- ✅ Added
           p.approvedBy,
           p.approvedBy_Status,
           p.receivedBy_Status,
@@ -62,12 +71,20 @@ const getPrfListByUser = async (username) => {
           d.dateNeeded,
           d.status,
           d.isDelivered,
+          d.DateDelivered,
           d.isPending,
           d.isCancel as detailsIsCancel
         FROM PRFTABLE p
         LEFT OUTER JOIN PRFTABLE_DETAILS d ON p.prfId = d.PrfId
         WHERE p.preparedBy = @username
-        GROUP BY p.prfId, p.prfNo, p.preparedBy, p.prfDate, p.isCancel, p.approvedBy, p.approvedBy_Status, p.receivedBy_Status, p.checkedBy_Status, d.StockName, d.QTY, d.UOM, d.dateNeeded, d.status, d.isDelivered, d.isPending, d.isCancel
+        GROUP BY 
+        p.prfId, p.prfNo, p.preparedBy, 
+        p.prfDate, p.isCancel, p.isReject, p.approvedBy, 
+        p.approvedBy_Status, p.receivedBy_Status, 
+        p.checkedBy_Status, d.StockName, 
+        d.QTY, d.UOM, d.dateNeeded, d.status, 
+        d.isDelivered, d.DateDelivered,
+        d.isPending, d.isCancel
         ORDER BY p.prfDate DESC
       `)
 
@@ -99,6 +116,7 @@ const getPrfByNumber = async (prfId) => {
           checkedBy_Status,
           prfDate,
           isCancel,
+          isReject,       -- ✅ Added
           departmentId
         FROM PRFTABLE
         WHERE prfId = @prfId
@@ -121,6 +139,7 @@ const getPrfByNumber = async (prfId) => {
           QTY AS quantity,
           UOM AS unit,
           DateNeeded,
+          DateDelivered,     -- ✅ Added
           Purpose,
           Description,
           status,
@@ -155,7 +174,8 @@ const updatePrfListStatus = async (prfId) => {
         SELECT 
           approvedBy_Status,
           receivedBy_Status,
-          isCancel
+          isCancel,
+          isReject            -- ✅ Added           
         FROM PRFTABLE
         WHERE prfId = @prfId
       `)
@@ -167,7 +187,9 @@ const updatePrfListStatus = async (prfId) => {
     const prf = prfResult.recordset[0]
     let status = "Pending"
 
-    if (prf.isCancel === 1 || prf.isCancel === true) {
+    if (prf.isReject === 1) {
+      status = "Rejected"
+    } else if (prf.isCancel === 1 || prf.isCancel === true) { 
       status = "Cancelled"
     } else if (prf.approvedBy_Status && prf.approvedBy_Status.trim().toUpperCase() === "APPROVED") {
       status = "Approved"
