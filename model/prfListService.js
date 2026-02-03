@@ -13,6 +13,7 @@ const getPrfList = async () => {
           p.prfDate, 
           p.isCancel AS prfIsCancel,  
           p.isReject,                 -- ✅ Added
+          p.assignedTo,
           p.approvedBy,
           p.approvedBy_Status,
           p.receivedBy_Status,
@@ -31,7 +32,8 @@ const getPrfList = async () => {
         LEFT OUTER JOIN PRFTABLE_DETAILS d ON p.prfId = d.PrfId
         GROUP BY 
         p.prfId, p.prfNo, p.preparedBy, p.prfDate, 
-        p.isCancel, p.isReject, p.approvedBy, p.approvedBy_Status, 
+        p.isCancel, p.isReject, p.assignedTo, 
+        p.approvedBy, p.approvedBy_Status, 
         p.receivedBy_Status, p.checkedBy_Status, 
         d.StockName, d.Id, d.status, d.isDelivered, 
         d.DateDelivered, d.isPending, d.QTY, d.UOM, d.dateNeeded,
@@ -61,6 +63,7 @@ const getPrfListByUser = async (username) => {
           p.prfDate, 
           p.isCancel AS prfIsCancel,
           p.isReject,                 -- ✅ Added
+          p.assignedTo,
           p.approvedBy,
           p.approvedBy_Status,
           p.receivedBy_Status,
@@ -79,7 +82,8 @@ const getPrfListByUser = async (username) => {
         WHERE p.preparedBy = @username
         GROUP BY 
         p.prfId, p.prfNo, p.preparedBy, 
-        p.prfDate, p.isCancel, p.isReject, p.approvedBy, 
+        p.prfDate, p.isCancel, p.isReject, 
+        p.assignedTo, p.approvedBy, 
         p.approvedBy_Status, p.receivedBy_Status, 
         p.checkedBy_Status, d.StockName, 
         d.QTY, d.UOM, d.dateNeeded, d.status, 
@@ -88,7 +92,7 @@ const getPrfListByUser = async (username) => {
         ORDER BY p.prfDate DESC
       `)
 
-    console.log(`Found ${result.recordset.length} PRFs for user: ${username}`)
+    // console.log(`Found ${result.recordset.length} PRFs for user: ${username}`)
 
     return result.recordset
   } catch (error) {
@@ -117,6 +121,7 @@ const getPrfByNumber = async (prfId) => {
           prfDate,
           isCancel,
           isReject,       -- ✅ Added
+          assignedTo,
           departmentId
         FROM PRFTABLE
         WHERE prfId = @prfId

@@ -1,7 +1,7 @@
 const { NVarChar } = require("mssql")
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
 
-// Check if user already exists by username or fullName
+// Check if user already exists
 const checkUserExists = async (username, fullName) => {
   try {
     const pool = await poolPurchaseRequest
@@ -16,6 +16,7 @@ const checkUserExists = async (username, fullName) => {
           OR LOWER(LTRIM(RTRIM(fullName))) = LOWER(LTRIM(RTRIM(@fullName)))
       `)
 
+    // Get the number of matching users
     const count = result.recordset[0].count
 
     return count > 0
@@ -29,13 +30,14 @@ const checkUserExists = async (username, fullName) => {
 const registerEmployee = async (departmentType, departmentId, fullName, username, password, outlookEmail) => {
   try {
     
-    // Check if user already exists
+    // Check if username or full name already exists
     const userExists = await checkUserExists(username, fullName)
+
     if (userExists) {
       return { success: false, message: "User already exists" }
     }
 
-    // Determine departmentId based on departmentType
+    // Assign departmentid based on department type
     let deptId
     switch (departmentType) {
 
@@ -64,42 +66,46 @@ const registerEmployee = async (departmentType, departmentId, fullName, username
       break
 
       case "LEGAL":
-        deptId = 8
+        deptId = 7
       break
 
       case "FINANCE":
-        deptId = 9
+        deptId = 8
       break
 
       case "HR":
-        deptId = 10
+        deptId = 9
       break
 
       case "MARKETING":
-        deptId = 11
+        deptId = 10
       break
 
       case "REGULATORY":
-        deptId = 12
+        deptId = 11
       break
 
       case "PURCHASING":
-        deptId = 13
+        deptId = 12
       break
 
       case "WLO":
-        deptId = 14
+        deptId = 13
       break
 
       case "ENGINEERING":
-        deptId = 15
+        deptId = 14
       break
 
       case "SALES":
-        deptId = 16
+        deptId = 15
       break
 
       case "CORPLAN":
+        deptId = 16
+      break
+
+      case "IT":
         deptId = 17
       break
 
@@ -116,6 +122,8 @@ const registerEmployee = async (departmentType, departmentId, fullName, username
     }
 
     const pool = await poolPurchaseRequest
+
+    // Insert user data into Users_Info table
     const result = await pool
       .request()
       .input("departmentType", sql.NVarChar, departmentType)
@@ -129,11 +137,11 @@ const registerEmployee = async (departmentType, departmentId, fullName, username
         OUTPUT INSERTED.userID
         VALUES (@departmentType, @fullName, @username, @password, 1, GETDATE(), @departmentId, @outlookEmail);
       `)
-
+    
+    // Get the newly created user ID
     const userID = result.recordset[0].userID
-    console.log("✅ User created with ID:", userID)
 
-    // Insert into Login table
+    // Insert into login credentials into Login table
     await pool
       .request()
       .input("userID", sql.Int, userID)
@@ -151,7 +159,8 @@ const registerEmployee = async (departmentType, departmentId, fullName, username
   }
 }
 
-// Login User (Plain Text Authentication)
+// Login User
+// Checks username and password
 const loginUser = async (username, password) => {
   try {
     const pool = await poolPurchaseRequest

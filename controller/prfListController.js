@@ -19,7 +19,6 @@ const fetchPrfListByUser = async (req, res) => {
 
     const prfList = await getPrfListByUser(username)
 
-    console.log(`Returning ${prfList.length} PRFs for user: ${username}`)
     res.status(200).json(prfList)
   } catch (error) {
     console.error("Error fetching PRF List by user:", error)

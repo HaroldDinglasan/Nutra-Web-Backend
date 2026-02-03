@@ -28,11 +28,12 @@ const markAsReceivedService = async (Id) => {
 }
 
 // Dito nag uupdate si admin para sa remarks na PRFTABLE_DETAILS
-const updateRemarksService = async (id, remarks, dateDelivered) => {
+const updateRemarksService = async (id, remarks, dateDelivered, assignedTo) => {
   try {
     const pool = await poolPurchaseRequest;
 
-    const result = await pool
+    // 1️⃣ Update PRFTABLE_DETAILS (remarks + date)
+    await pool
       .request()
       .input("Id", sql.Int, id)
       .input("Remarks", sql.VarChar(sql.MAX), remarks)
@@ -40,12 +41,27 @@ const updateRemarksService = async (id, remarks, dateDelivered) => {
       .query(`
         UPDATE PRFTABLE_DETAILS
         SET 
-          remarks = @Remarks, 
-          Datedelivered = @DateDelivered
+          remarks = @Remarks,
+          DateDelivered = @DateDelivered
         WHERE Id = @Id
       `);
-    return result.rowsAffected[0];
+
+    // 2️⃣ Update PRFTABLE (assignedTo)
+    await pool
+      .request()
+      .input("Id", sql.Int, id)
+      .input("AssignedTo", sql.VarChar(100), assignedTo)
+      .query(`
+        UPDATE P
+        SET P.assignedTo = @AssignedTo
+        FROM PRFTABLE P
+        INNER JOIN PRFTABLE_DETAILS D ON P.prfId = D.PrfId
+        WHERE D.Id = @Id
+      `);
+
+    return { success: true };
   } catch (error) {
+    console.error("Error in updateRemarksService:", error);
     throw error;
   }
 };
@@ -74,6 +90,7 @@ const getIsDeliveredListService = async () => {
             P.prfNo,
             P.prfDate,
             P.preparedBy,
+            P.assignedTo,
             D.Id,
             D.StockId,
             D.StockCode,
