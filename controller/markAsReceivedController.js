@@ -23,7 +23,7 @@ const markAsReceived = async (req, res) => {
 const updateRemarks = async (req, res) => {
   try {
     const { Id } = req.params;
-    const { remarks, dateDelivered} = req.body;
+    const { remarks, dateDelivered, assignedTo } = req.body;
 
     if (!Id) {
       return res.status(400).json({ message: "Missing remarks or ID" });
@@ -33,7 +33,7 @@ const updateRemarks = async (req, res) => {
     const safeRemarks = remarks && remarks.trim() !== ""? remarks : null;
     const safeDateDelivered = dateDelivered || null;
 
-    const affected = await updateRemarksService(Id, safeRemarks, safeDateDelivered);
+    const affected = await updateRemarksService(Id, safeRemarks, safeDateDelivered, assignedTo);
 
     if (affected === 0) {
       return res.status(404).json({ message: "Record not found" });

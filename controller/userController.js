@@ -1,4 +1,4 @@
-const { registerEmployee, loginUser } = require("../model/userModel")
+const { registerEmployee, loginUser } = require("../model/userService")
 
 // Register User
 const registerUser = async (req, res) => {
