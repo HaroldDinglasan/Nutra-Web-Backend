@@ -3,6 +3,7 @@ const { sendApprovalNotifications } = require("../lib/email-service")
 const { getApprovalById } = require("../model/approvalModel")
 const { getPrfById, getPrfByNumber, getLatestPrfByUser, getPrfWithDepartment } = require("../model/prfDataModel")
 const { getEmployeeByOid } = require("../model/employeeModel")
+const { sendStockAvailabilityNotification } = require("../lib/email-service")
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
 
 const router = express.Router()
@@ -251,5 +252,71 @@ router.post("/notifications/send-direct", async (req, res) => {
     })
   }
 })
+
+router.post("/notifications/stock-availability", async (req, res) => {
+  try {
+    const { 
+      stockCode, 
+      stockName, 
+      prfNo, 
+      preparedBy, 
+      company, 
+      recipients, 
+      senderEmail, 
+      smtpPassword 
+    } = req.body;
+
+    console.log("[v0] Received stock availability notification request:", {
+      stockCode,
+      stockName,
+      prfNo,
+      recipientCount: recipients?.length
+    });
+
+    // Validate required fields
+    if (!stockCode || !stockName || !prfNo || !recipients || recipients.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields: stockCode, stockName, prfNo, recipients"
+      });
+    }
+
+    // Send the notification
+    const result = await sendStockAvailabilityNotification(
+      stockCode,
+      stockName,
+      prfNo,
+      preparedBy || "System",
+      company || "NutraTech Biopharma, Inc",
+      recipients,
+      senderEmail || process.env.SMTP_USER,
+      smtpPassword || process.env.SMTP_PASSWORD
+    );
+
+    if (result.success) {
+      console.log("✅ Stock availability notifications sent successfully");
+      return res.status(200).json({
+        success: true,
+        message: "Stock availability notifications sent to all recipients",
+        results: result.results
+      });
+    } else {
+      console.error("❌ Failed to send stock availability notifications");
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send notifications",
+        error: result.error
+      });
+    }
+  } catch (error) {
+    console.error("❌ Error in stock-availability route:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error processing stock availability notification",
+      error: error.message
+    });
+  }
+});
+
 
 module.exports = router
