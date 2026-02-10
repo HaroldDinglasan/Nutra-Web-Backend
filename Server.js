@@ -14,6 +14,7 @@ const approvalRoutes = require("./routes/approvalRoutes")
 const notificationRoutes = require("./routes/notificationRoutes")
 const markAsReceivedRoutes = require("./routes/markAsReceivedRoutes")
 const approveOrRejectPrfRoutes = require("./routes/approveOrRejectPrfRoutes")
+const cgsCheckerRoutes = require("./routes/cgsCheckerRoutes")
 
 dotenv.config()
 const app = express()
@@ -37,7 +38,7 @@ app.use("/api", approvalRoutes)
 app.use("/api", notificationRoutes)
 app.use("/api", markAsReceivedRoutes)
 app.use("/api", approveOrRejectPrfRoutes)
-
+app.use("/api", cgsCheckerRoutes)
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`)
