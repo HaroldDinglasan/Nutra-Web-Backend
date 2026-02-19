@@ -256,6 +256,7 @@ router.post("/notifications/send-direct", async (req, res) => {
 router.post("/notifications/stock-availability", async (req, res) => {
   try {
     const { 
+      prfId,
       stockCode, 
       stockName, 
       prfNo, 
@@ -274,19 +275,32 @@ router.post("/notifications/stock-availability", async (req, res) => {
     });
 
     // Validate required fields
-    if (!stockCode || !stockName || !prfNo || !recipients || recipients.length === 0) {
+    if (!prfId || !stockCode || !stockName || !recipients || recipients.length === 0) {
       return res.status(400).json({
         success: false,
         message: "Missing required fields: stockCode, stockName, prfNo, recipients"
       });
     }
 
+    // Fetch PRF from DB to guarantee PRF No exists
+    const prfDataFromDb = await getPrfById(prfId);
+
+    if (!prfDataFromDb) {
+      return res.status(404).json({
+        success: false,
+        message: "PRF not found"
+      });
+    }
+
+    const finalPrfNo = prfDataFromDb.prfNo;
+
     // Send the notification
-    const result = await sendStockAvailabilityNotification(
+      const result = await sendStockAvailabilityNotification(
+      prfId,
       stockCode,
       stockName,
-      prfNo,
-      preparedBy || "System",
+      finalPrfNo,   // ✅ guaranteed from DB
+      preparedBy || prfDataFromDb.preparedBy || "System",
       company || "NutraTech Biopharma, Inc",
       recipients,
       senderEmail || process.env.SMTP_USER,
