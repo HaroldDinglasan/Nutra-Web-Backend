@@ -95,7 +95,7 @@ const sendDeliveryNotification = async (req, res) => {
     // Send the email with StockName
     const notificationResult = await sendEmail(
       requestorEmail,
-      "prfReceived",
+      "prfDelivered",
       {
         prfNo: prfData.prfNo,
         prfId: prfData.prfId,
