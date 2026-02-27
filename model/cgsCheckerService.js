@@ -5,6 +5,8 @@ const { sql, poolPurchaseRequest } = require("../connectionHelper/db");
 // Names: Ryeanna Lois Campos, Regienel S. Regalado, Jazzlyn Villaruel
 const getStockCheckersFromDB = async () => {
   try {
+    
+    // Connect to PurchaseRequest database
     const pool = await poolPurchaseRequest;
 
     // Fixed names of the 3 stock checkers
@@ -14,8 +16,10 @@ const getStockCheckersFromDB = async () => {
       "Jazzlyn Villaruel",
     ];
 
-    // Query to fetch from Users_Info table
+    // Create SQL parameters dynamically
     const placeholders = checkerNames.map((_, i) => `@name${i}`).join(", ");
+
+    // Get fullname and email from Users_Info table
     let query = `
       SELECT fullName, outlookEmail 
       FROM Users_Info 
@@ -23,34 +27,37 @@ const getStockCheckersFromDB = async () => {
     `;
 
     const request = pool.request();
+
+    // Pass each name as SQL parameter (for security)
     checkerNames.forEach((name, i) => {
       request.input(`name${i}`, sql.NVarChar(255), name);
     });
 
     const result = await request.query(query);
 
+    // If no checker found
     if (result.recordset.length === 0) {
-      console.warn("[v0] Stock checkers not found in Users_Info table");
+      console.warn("[ Stock checkers not found in Users_Info table");
       return [];
     }
 
-    // Map results to recipient format
+    // Convert result into simple object { email, name }
     const stockCheckers = result.recordset.map((user) => ({
       email: user.outlookEmail,
       name: user.fullName,
     }));
 
-    console.log(`[v0] Fetched ${stockCheckers.length} stock checkers from database`);
-    console.log("[v0] Stock checkers:", stockCheckers);
+    console.log(` Fetched ${stockCheckers.length} stock checkers from database`);
+    console.log(" Stock checkers:", stockCheckers);
 
     return stockCheckers;
   } catch (error) {
-    console.error("[v0] Error fetching stock checkers from database:", error);
+    console.error(" Error fetching stock checkers from database:", error);
     throw error;
   }
 };
 
-// GET PRF + STOCK DETAILS
+// GET PRF NUMBER AND STOCK NAME
 const getPrfAndStockDetails = async (prfId, stockCode) => {
   const pool = await poolPurchaseRequest;
 
@@ -72,7 +79,7 @@ const getPrfAndStockDetails = async (prfId, stockCode) => {
 };
 
 
-// GET REQUESTOR EMAIL BY PRF
+// GET REQUESTOR NAME AND EMAIL BY PRF ID
 const getRequestorByPrfId = async (prfId) => {
   const pool = await poolPurchaseRequest;
 
@@ -91,7 +98,7 @@ const getRequestorByPrfId = async (prfId) => {
   return result.recordset[0];
 };
 
-// CHECK IF ALREADY VERIFIED
+// CHECK IF STOCK WAS ALREADY CHECKED
 const isAlreadyChecked = async (prfId, stockCode) => {
   const pool = await poolPurchaseRequest;
 
@@ -108,6 +115,7 @@ const isAlreadyChecked = async (prfId, stockCode) => {
   return result.recordset[0].cnt > 0;
 };
 
+// GET LATEST CHECK RECORD (APPROVE OR REJECT)
 const getLatestStockCheckByPrfId = async (prfId, stockCode) => {
   const pool = await poolPurchaseRequest;
 

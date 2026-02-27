@@ -1,25 +1,37 @@
 const { poolPurchaseRequest } = require("../connectionHelper/db")
 
+// Search PRF using PRF Number
 const searchPrfByNumber = async (prfNo) => {
   try {
     const pool = await poolPurchaseRequest
 
-    // Remove "No. " prefix if it exists
+    // Step 1: Remove "No. " prefix if user included it (ex: "No. 2024-001")
     let searchPrfNo = prfNo
     if (prfNo.startsWith("No. ")) {
       searchPrfNo = prfNo.substring(4) // Remove the first 4 characters ("No. ")
     }
 
-    // First, get the PRF header information and prfId
+    // Step 2: Get PRF header information from PRFTABLE
     const headerResult = await pool
       .request()
       .input("prfNo", searchPrfNo)
       .query(`
-        SELECT prfId, prfNo, prfDate, preparedBy, departmentId, isCancel, checkedBy, approvedBy, receivedBy, departmentCharge
+        SELECT 
+          prfId, 
+          prfNo, 
+          prfDate, 
+          preparedBy, 
+          departmentId, 
+          isCancel, 
+          checkedBy, 
+          approvedBy, 
+          receivedBy, 
+          departmentCharge
         FROM PRFTABLE 
         WHERE prfNo = @prfNo
       `)
 
+      // If PRF not found
       if (headerResult.recordset.length === 0) {
         return { found: false, message: "PRF not found" }
       }
@@ -27,10 +39,10 @@ const searchPrfByNumber = async (prfNo) => {
     const prfHeader = headerResult.recordset[0]
     const prfId = prfHeader.prfId
 
-    // Convert isCancel to a number to ensure consistent type
+    // Convert isCnacel into number (0 or 1)
     const isCancel = Number(prfHeader.isCancel)
 
-    // Next, get the PRF details using the prfId
+    // Step 3: Get PRF item details musing prfId
     const detailsResult = await pool
       .request()
       .input("prfId", prfId)
@@ -47,20 +59,23 @@ const searchPrfByNumber = async (prfNo) => {
         WHERE PrfId = @prfId
       `)
 
-    // Check if it's the same day as the PRF was created
+    // Step 4: Check if PRF was created today
     const prfDate = new Date(prfHeader.prfDate)
     const currentDate = new Date()
+
     const isSameDay =
       prfDate.getFullYear() === currentDate.getFullYear() &&
       prfDate.getMonth() === currentDate.getMonth() &&
       prfDate.getDate() === currentDate.getDate()
 
-    // A PRF is fully cancelled ONLY if isCancel = 1 in the database
+    // Step 5: Check if PRF is fully cancelled
     const isFullyCancelled = isCancel === 1
 
-    // Return both the header and details information, including cancellation status and approval names
+    // Return header + details + approval names + status flags
     return {
       found: true,
+
+      // PRF Header Information
       header: {
         ...prfHeader,
         prfIsCancel: isCancel,
@@ -68,13 +83,18 @@ const searchPrfByNumber = async (prfNo) => {
         isFullyCancelled: isFullyCancelled,
         isSameDay: isSameDay,
       },
+
+      // PRF Item Details
       details: detailsResult.recordset,
-      // Include approval names in the response
+
+      // Approval Names
       approvalNames: {
         checkedByUser: prfHeader.checkedBy || "",
         approvedByUser: prfHeader.approvedBy || "",
         receivedByUser: prfHeader.receivedBy || "",
       },
+
+      // Extra Flags (for Frontend logic)
       isCancel: isCancel,
       isFullyCancelled,
       isSameDay,

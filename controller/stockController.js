@@ -1,4 +1,4 @@
-const { getStocks } = require("../model/stockModel");
+const { getStocks } = require("../model/stockService");
 
 const fetchStocks = async (req, res) => {
   try {

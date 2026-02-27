@@ -1,4 +1,4 @@
-const { savePrfHeader, updatePrfApprovalNames } = require("../model/prfTableModel")
+const { savePrfHeader, updatePrfApprovalNames } = require("../model/prfTableService")
 
 // Controller to handle saving PRF header data
 const savePrf = async (req, res) => {
@@ -27,7 +27,9 @@ const savePrf = async (req, res) => {
 const updatePrfApprovals = async (req, res) => {
   try {
     const { prfId } = req.params
-    const { checkedByUser, approvedByUser, receivedByUser } = req.body
+
+    const { checkedByUser, secondCheckedByUser, approvedByUser, receivedByUser } = req.body
+
     // Validate required fields
     if (!prfId) {
       return res.status(400).json({
@@ -35,14 +37,15 @@ const updatePrfApprovals = async (req, res) => {
         message: "PRF ID is required",
       })
     }
-    if (!checkedByUser || !approvedByUser || !receivedByUser) {
+    if (!checkedByUser || !secondCheckedByUser || !approvedByUser || !receivedByUser) {
       return res.status(400).json({
         success: false,
-        message: "All approval names (checkedByUser, approvedByUser, receivedByUser) are required",
+        message: "All approval names (checkedByUser, secondCheckedByUser, approvedByUser, receivedByUser) are required",
       })
     }
     const result = await updatePrfApprovalNames(prfId, {
       checkedByUser,
+      secondCheckedByUser,
       approvedByUser,
       receivedByUser,
     })
@@ -55,7 +58,7 @@ const updatePrfApprovals = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "PRF approval names updated successfully",
-      data: { checkedByUser, approvedByUser, receivedByUser },
+      data: { checkedByUser, secondCheckedByUser,  approvedByUser, receivedByUser },
     })
   } catch (error) {
     console.error("Error updating PRF approval names:", error)

@@ -1,10 +1,11 @@
 const { poolPurchaseRequest } = require("../connectionHelper/db")
 
-// Function to get PRF data by ID
+// Get PRF details using prfId
 const getPrfById = async (prfId) => {
   try {
     const pool = await poolPurchaseRequest
 
+    // Query PRFTALBE where prfId matches
     const result = await pool
       .request()
       .input("prfId", prfId)
@@ -22,6 +23,7 @@ const getPrfById = async (prfId) => {
         WHERE prfId = @prfId
       `)
 
+    // Return first result or null if not found
     return result.recordset[0] || null
   } catch (error) {
     console.error("Error getting PRF data by ID:", error)
@@ -29,11 +31,12 @@ const getPrfById = async (prfId) => {
   }
 }
 
-// Function to get PRF data by PRF number
+// Get PRF details using PRF number
 const getPrfByNumber = async (prfNo) => {
   try {
     const pool = await poolPurchaseRequest
 
+    // Query PRFTABLE where prfNo matches
     const result = await pool
       .request()
       .input("prfNo", prfNo)
@@ -51,6 +54,7 @@ const getPrfByNumber = async (prfNo) => {
         WHERE prfNo = @prfNo
       `)
 
+    // Return first result or null if not found
     return result.recordset[0] || null
   } catch (error) {
     console.error("Error getting PRF data by number:", error)
@@ -58,11 +62,12 @@ const getPrfByNumber = async (prfNo) => {
   }
 }
 
-// Function to get the latest PRF for a user
+// Get the latest PRF created by a specific user
 const getLatestPrfByUser = async (preparedBy) => {
   try {
     const pool = await poolPurchaseRequest
 
+    // Get the most recent PRF (Top 1 ordered by latest date)
     const result = await pool
       .request()
       .input("preparedBy", preparedBy)
@@ -88,11 +93,12 @@ const getLatestPrfByUser = async (preparedBy) => {
   }
 }
 
-// Function to get department name by department ID
+// Get deparment name using deparmentId
 const getDepartmentName = async (departmentId) => {
   try {
     const pool = await poolPurchaseRequest
-
+    
+    // Query Department table to get departmentName
     const result = await pool
       .request()
       .input("departmentId", departmentId)
@@ -102,6 +108,7 @@ const getDepartmentName = async (departmentId) => {
         WHERE departmentId = @departmentId
       `)
 
+    // Return department name if exists, else null
     return result.recordset.length > 0 ? result.recordset[0].departmentName : null
   } catch (error) {
     console.error("Error getting department name:", error)
@@ -109,11 +116,13 @@ const getDepartmentName = async (departmentId) => {
   }
 }
 
-// Function para makuha kung anong department type sa table na Users_Info
+// Get PRF details together with department type of the user
 const getPrfWithDepartment = async (prfId) => {
   try {
     const pool = await poolPurchaseRequest;
 
+    // Join PRFTABLE with Users_Info
+    // This gets the departmentType of the person who prepared the PRF
     const result = await pool
       .request()
       .input("prfId", prfId)
@@ -125,6 +134,10 @@ const getPrfWithDepartment = async (prfId) => {
           p.preparedBy,
           p.departmentId,
           p.departmentCharge,
+          p.checkedBy,
+          p.secondCheckedBy,
+          p.approvedBy,
+          p.receivedBy,
           u.departmentType AS departmentType
         FROM PRFTABLE p
         LEFT JOIN Users_Info u
@@ -134,7 +147,7 @@ const getPrfWithDepartment = async (prfId) => {
 
     return result.recordset[0] || null;
   } catch (error) {
-    console.error("Error getting PRF with department:", error)
+    console.error("Error getting PRF with department:", error);
     throw error;
   }
 };

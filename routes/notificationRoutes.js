@@ -1,8 +1,8 @@
 const express = require("express")
 const { sendApprovalNotifications } = require("../lib/email-service")
-const { getApprovalById } = require("../model/approvalModel")
-const { getPrfById, getPrfByNumber, getLatestPrfByUser, getPrfWithDepartment } = require("../model/prfDataModel")
-const { getEmployeeByOid } = require("../model/employeeModel")
+const { getApprovalById } = require("../model/approvalService")
+const { getPrfById, getPrfByNumber, getLatestPrfByUser, getPrfWithDepartment } = require("../model/prfDataService")
+const { getEmployeeByOid } = require("../model/employeeService")
 const { sendStockAvailabilityNotification } = require("../lib/email-service")
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
 

@@ -1,10 +1,14 @@
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
 
+// Save multiple PRF details (bulk insert)
 const savePRFDetails = async (prfDetailsArray) => {
   try {
     const pool = await poolPurchaseRequest
+
+    // A table object for bulk insert to PRFTABLE_DETAILS
     const table = new sql.Table("PRFTABLE_DETAILS")
 
+    // Set table structure (columns must match database)
     table.create = false
     table.columns.add("PrfId", sql.UniqueIdentifier, { nullable: false })
     table.columns.add("StockId", sql.UniqueIdentifier, { nullable: false })
@@ -16,8 +20,10 @@ const savePRFDetails = async (prfDetailsArray) => {
     table.columns.add("Purpose", sql.VarChar(250), { nullable: false })
     table.columns.add("Description", sql.VarChar(250), { nullable: true })
 
+    // Loop all PRF details and add them as rows
     prfDetailsArray.forEach((detail) => {
       console.log("Saving PRF details with PrfId:", detail.prfId)
+
       table.rows.add(
         detail.prfId,
         detail.stockId,
@@ -31,6 +37,7 @@ const savePRFDetails = async (prfDetailsArray) => {
       )
     })
 
+    // Execute bulk insert
     const request = pool.request()
     await request.bulk(table)
 
@@ -40,12 +47,12 @@ const savePRFDetails = async (prfDetailsArray) => {
   }
 }
 
+// Update PRF details (only allowed on the same day it was created)
 const updatePrfDetails = async (prfId, updatedDetails) => {
   try {
     const pool = await poolPurchaseRequest
     
-    // Chinecheck kung yung prf mauupdate based sa pag create ng date
-    // Dahil mauupdate mo lang yung prf within the day
+    // Step 1: Get PRF creatin date
     const prfDateResult = await pool
       .request()
       .input("prfId", prfId)
@@ -59,14 +66,14 @@ const updatePrfDetails = async (prfId, updatedDetails) => {
       return { success: false, message: "PRF not found" }
     }
     
-    // Get PRF creation date and format it to YYYY-MM-DD
+    // Format PRF creation date (YYYY-MM-DD only)
     const prfDate = new Date(prfDateResult.recordset[0].prfDate)
     const prfDateFormatted = prfDate.toISOString().split('T')[0]
     
-    // Get current date in YYYY-MM-DD format
+    // Get current date (YYYY-MM-DD)
     const currentDate = new Date().toISOString().split('T')[0]
     
-    // Check if current date is different from PRF creation date
+    // ❌ If not same day, do not allow update
     if (currentDate !== prfDateFormatted) {
       return { 
         success: false, 
@@ -74,10 +81,10 @@ const updatePrfDetails = async (prfId, updatedDetails) => {
       }
     }
 
-    // Kapag same day ginawa ang prf, proceed sa update
-    // Update bawat details
+    // If same day, proceed to update each detail
     for (const detail of updatedDetails) {
-      // Check if the record exists
+
+      // Check if the detail already exists (based on prfId + stockCode)
       const checkResult = await pool
         .request()
         .input("prfId", prfId)
@@ -91,7 +98,7 @@ const updatePrfDetails = async (prfId, updatedDetails) => {
       const recordExists = checkResult.recordset[0].count > 0
 
       if (recordExists) {
-        // Update existing record
+        // If record exists -> UPDATE
         await pool
           .request()
           .input("prfId", prfId)
@@ -114,7 +121,7 @@ const updatePrfDetails = async (prfId, updatedDetails) => {
             WHERE PrfId = @prfId AND StockCode = @stockCode
           `)
       } else {
-        // Insert new record
+        // If record does not exist -> INSERT new detail
         await pool
           .request()
           .input("prfId", prfId)

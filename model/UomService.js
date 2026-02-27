@@ -1,13 +1,14 @@
 const { sql, poolAVLI } = require("../connectionHelper/db")
 
-// Fetch UOMCodes by StockId with BaseUOM from Stocks table
+// Get UOM (Unit of Measure) list based on stockId or stockCode
 const getUomCodesByStockId = async (stockId) => {
   try {
     console.log(`Attempting to fetch UOMCodes for StockId: ${stockId}`)
 
     const pool = await poolAVLI
 
-    // If stockId is 'all', fetch all UOMs
+    // Step 1: If stockId is 'all'
+    // Return all UOM records from UOMs table
     if (stockId === "all") {
       const result = await pool.request().query(`
         SELECT DISTINCT
@@ -24,9 +25,9 @@ const getUomCodesByStockId = async (stockId) => {
       return result.recordset
     }
 
-    // If stockId is a stockCode, fetch UOMs for that stockCode
+    // Step 2: If stockId looks like a StockCode (shorter than UIID length 36)
+    // Search using StockCode from Stocks table
     if (stockId && stockId.length < 36) {
-      // UUID is 36 chars, assuming stockCode is shorter
       const result = await pool
         .request()
         .input("stockCode", stockId)
@@ -47,7 +48,8 @@ const getUomCodesByStockId = async (stockId) => {
       }
     }
 
-    // Otherwise, fetch UOMs for the specific stockId
+    // Step 3: Otherwise, treat stockId as UUID
+    // Search using StockId directly
     const result = await pool
       .request()
       .input("stockId", sql.UniqueIdentifier, stockId)
@@ -68,9 +70,14 @@ const getUomCodesByStockId = async (stockId) => {
     } else {
       console.log("No UOMCodes found for this StockId")
 
-      // direct query to see what's in the UOMs table
+      // Step 4: Debugging: Show sample records from UOMs table
       const checkResult = await pool.request().query(`
-          SELECT TOP 5 u.Id, u.StockId, u.UOMCode, u.Description, u.Rate
+          SELECT TOP 5 
+            u.Id, 
+            u.StockId, 
+            u.UOMCode, 
+            u.Description,
+            u.Rate
           FROM [UOMs] u
           LEFT JOIN [Stocks] s ON u.StockId = s.Id
         `)

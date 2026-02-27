@@ -216,10 +216,16 @@ router.get("/cgs-stock/reject", async (req, res) => {
       console.warn("[v0] No requestor email found for PRF:", prfId);
     }
 
-    return res.send("<h2>❌ Stock marked as NOT AVAILABLE.</h2>");
+    return res.status(200).json({
+      success: true,
+      message: "Stock marked as NOT AVAILABLE successfully",
+    });
   } catch (error) {
     console.error("[v0] Reject error:", error);
-    return res.send("<h2>Error processing rejection.</h2>");
+    return res.status(500).json({
+      success: false,
+      message: "Error processing rejection",
+    });
   }
 });
 
@@ -431,10 +437,16 @@ router.post("/cgs-stock/reject", async (req, res) => {
       console.warn("[v0] No requestor email found for PRF:", prfId);
     }
 
-    return res.send("<h2>❌ Stock marked as NOT AVAILABLE.</h2>");
+    return res.status(200).json({
+      success: true,
+      message: "Stock marked as NOT AVAILABLE successfully",
+    });
   } catch (error) {
     console.error("[v0] Reject error:", error);
-    return res.send("<h2>Error processing rejection.</h2>");
+    return res.status(500).json({
+      success: false,
+      message: "Error processing rejection",
+    });
   }
 });
 

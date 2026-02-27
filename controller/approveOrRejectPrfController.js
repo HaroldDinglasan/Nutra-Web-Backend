@@ -1,8 +1,45 @@
 const { approvePrfByHeads, rejectPrfByHeads } = require("../model/approveOrRejectPrfService")
 const { sendApprovalNotifications, sendEmail } = require("../lib/email-service")
-const { getPrfWithDepartment } = require("../model/prfDataModel")
-const { getEmployeeByOid } = require("../model/employeeModel")
+const { getPrfWithDepartment } = require("../model/prfDataService")
+const { getEmployeeByOid } = require("../model/employeeService")
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
+
+const getApprovalFlowDetails = async (prfId) => {
+  try {
+    const pool = await poolPurchaseRequest
+
+    const prfResult = await pool
+      .request()
+      .input("prfId", sql.UniqueIdentifier, prfId)
+      .query(`SELECT UserID FROM PRFTABLE WHERE prfId = @prfId`)
+
+    if (!prfResult.recordset.length) return null
+
+    const userId = prfResult.recordset[0].UserID
+
+    const result = await pool
+      .request()
+      .input("userId", sql.Int, userId)
+      .query(`
+        SELECT 
+          CheckedByEmail,
+          WloSecondCheckedByEmail,
+          ApprovedByEmail,
+          ReceivedByEmail,
+          CheckedById,
+          SecondCheckedById,
+          ApprovedById,
+          ReceivedById
+        FROM AssignedApprovals
+        WHERE UserID = @userId AND ApplicType = 'PRF'
+      `)
+
+    return result.recordset[0] || null
+  } catch (err) {
+    console.error("Error getting approval flow:", err)
+    return null
+  }
+}
 
 // Get requestor (PREPARED BY) email
 const getRequestorEmail = async (prfId) => {
@@ -184,6 +221,10 @@ const approvePrfController = async (req, res) => {
     // Step 1: Update PRF approval status
     const result = await approvePrfByHeads(prfId, actionType, userFullName)
 
+    // Get PRF details early (we will reuse it)
+    const prfData = await getPrfWithDepartment(prfId)
+    const isWLO = prfData?.departmentCharge === "WLO"
+
     if (!result.success) {
       return res.status(500).json({
         success: false,
@@ -195,112 +236,141 @@ const approvePrfController = async (req, res) => {
 
     // Step 2: After checkBy is confirmed, send notification to approveBy and requestor
     if (actionType.toLowerCase() === "check") {
-      console.log(" CHECK action detected - attempting to send approveBy and requestor notifications")
 
-      try {
-        // Kinukuha yung approval details
-        const approverDetails = await getApproverDetails(prfId)
-        console.log(" Approver details retrieved:", approverDetails)
+      const approvalFlow = await getApprovalFlowDetails(prfId)
+      if (!approvalFlow) {
+        return res.status(200).json({ success: true })
+      }
 
-        if (!approverDetails) {
-          console.warn(" Could not retrieve approver details")
-          return res.status(200).json({
-            success: true,
-            message: result.message,
-            data: result.data,
-          })
-        }
+      // 🔵 IF FIRST CHECKER (has second checker configured)
+      if (result.hasSecondChecker && !result.isSecondChecker) {
 
-        if (!approverDetails.approvedByEmail) {
-          console.warn(" No approveBy email found:", approverDetails)
-          return res.status(200).json({
-            success: true,
-            message: result.message,
-            data: result.data,
-          })
-        }
+        console.log(" First check completed → sending to second checker")
 
-        // Get PRF details for email
-        const prfData = await getPrfWithDepartment(prfId)
-
-        if (!prfData) {
-          console.warn(" Could not fetch PRF data for notification")
-          return res.status(200).json({
-            success: true,
-            message: result.message,
-            data: result.data,
-          })
-        }
-
-        // Approval data for notification
-        const approvalDataForNotification = {
-          ApprovedByEmail: approverDetails.approvedByEmail,
-          ApprovedByFullName: approverDetails.approvedByName,
-        }
-
-        console.log(" Sending approveBy email to:", {
-          email: approverDetails.approvedByEmail,
-          name: approverDetails.approvedByName,
-          prfNo: prfData.prfNo,
-        })
-
-        // Send notification to approveBy user
-        const notificationResult = await sendApprovalNotifications(
-          approvalDataForNotification,
+        // Para mag display sa outlook notification messages
+        await sendEmail(
+          result.secondCheckerEmail,
+          "checkBy",
           {
             prfNo: prfData.prfNo,
             prfId: prfData.prfId,
             prfDate: prfData.prfDate,
             preparedBy: prfData.preparedBy,
-            departmentCharge: prfData.departmentCharge || prfData.departmentType, // Pass departmentCharge to email
-            company: prfData.company || "NutraTech Biopharma, Inc",
-            CheckedByFullName: checkedByName || prfData.checkedBy || userFullName || "N/A",
-            ApprovedByFullName: approvedByName || approverDetails.approvedByName || "N/A",
-            ReceivedByFullName: receivedByName || prfData.receivedBy || "N/A",
+            departmentCharge: prfData.departmentCharge || prfData.departmentType,
+            company: "NutraTech Biopharma, Inc",
+            CheckedByFullName: prfData.secondCheckedBy, // ✅ FIXED
+            ApprovedByFullName: prfData.approvedBy,
+            ReceivedByFullName: prfData.receivedBy,
           },
           senderEmail,
-          smtpPassword,
-          ["approveBy"],
+          smtpPassword
         )
 
-        console.log(" ApproveBy notification result:", notificationResult)
+        return res.status(200).json({ success: true })
+      }
 
-        if (notificationResult.approveBy?.success) {
-          console.log(" Successfully sent approveBy email to:", approverDetails.approvedByEmail)
-        } else {
-          console.warn(" Failed to send approveBy notification:", notificationResult.approveBy?.error)
-        }
-        
-        // Eto yung part na nagsesent ng Outlook notifcation sa Requestor or nag prepare ng PRF
+      // 🔵 IF SECOND CHECKER
+      if (result.isSecondChecker) {
+
+        console.log(" Second check completed → notifying requestor and sending to approver")
+
+        // 1️⃣ Notify REQUESTOR that PRF is CHECKED
         const requestorDetails = await getRequestorEmail(prfId)
-        if (requestorDetails && requestorDetails.email) {
-          console.log(" Sending 'prfChecked' notification to requestor:", requestorDetails.email)
 
-          const prfCheckedNotification = await sendEmail(
+        if (requestorDetails && requestorDetails.email) {
+          await sendEmail(
             requestorDetails.email,
             "prfChecked",
             {
               prfNo: prfData.prfNo,
               prfId: prfData.prfId,
               preparedBy: requestorDetails.name,
-              CheckedByFullName: checkedByName || userFullName || "N/A",
-              ApprovedByFullName: approverDetails.approvedByName || "N/A",
+              CheckedByFullName: userFullName || "N/A",
+              ApprovedByFullName: prfData.approvedBy || "N/A",
+              ReceivedByFullName: prfData.receivedBy || "N/A",
               company: prfData.company || "NutraTech Biopharma, Inc",
             },
             senderEmail,
-            smtpPassword,
+            smtpPassword
           )
 
-          if (prfCheckedNotification.success) {
-            console.log(" Successfully sent prfChecked notification to requestor")
-          } else {
-            console.warn(" Failed to send prfChecked notification:", prfCheckedNotification.error)
-          }
-        } else {
-          console.warn(" Could not retrieve requestor email for check notification")
+          console.log(" Successfully notified requestor (prfChecked)")
         }
-      } catch (notificationError) {
-        console.error(" Error sending check notifications:", notificationError.message)
+
+        // 2️⃣ Notify APPROVED BY (next approver)
+        await sendEmail(
+          approvalFlow.ApprovedByEmail,
+          "approveBy",
+          {
+            prfNo: prfData.prfNo,
+            prfId: prfData.prfId,
+            prfDate: prfData.prfDate,
+            preparedBy: prfData.preparedBy,
+            departmentCharge: prfData.departmentCharge || prfData.departmentType,
+            company: prfData.company || "NutraTech Biopharma, Inc",
+            CheckedByFullName: prfData.checkedBy || "N/A",
+            ApprovedByFullName: prfData.approvedBy || "N/A",
+            ReceivedByFullName: prfData.receivedBy || "N/A",
+          },
+          senderEmail,
+          smtpPassword
+        )
+
+        console.log(" Successfully sent approveBy notification")
+
+        return res.status(200).json({ success: true })
+      }
+
+      // 🔵 NORMAL DEPARTMENT (no second checker)
+      if (!result.hasSecondChecker) {
+
+        console.log(" Normal department → notifying requestor and sending to approver")
+
+        // 1️⃣ Notify REQUESTOR (prfChecked)
+        const requestorDetails = await getRequestorEmail(prfId)
+
+        if (requestorDetails && requestorDetails.email) {
+          await sendEmail(
+            requestorDetails.email,
+            "prfChecked",
+            {
+              prfNo: prfData.prfNo,
+              prfId: prfData.prfId,
+              preparedBy: requestorDetails.name,
+              CheckedByFullName: userFullName || "N/A",
+              ApprovedByFullName: prfData.approvedBy || "N/A",
+              ReceivedByFullName: prfData.receivedBy || "N/A",
+              company: prfData.company || "NutraTech Biopharma, Inc",
+            },
+            senderEmail,
+            smtpPassword
+          )
+
+          console.log(" Successfully notified requestor (prfChecked)")
+        }
+
+        // 2️⃣ Notify APPROVED BY
+        await sendEmail(
+          approvalFlow.ApprovedByEmail,
+          "approveBy",
+          {
+            prfNo: prfData.prfNo,
+            prfId: prfData.prfId,
+            prfDate: prfData.prfDate,
+            preparedBy: prfData.preparedBy,
+            departmentCharge: prfData.departmentCharge || prfData.departmentType,
+            company: prfData.company || "NutraTech Biopharma, Inc",
+            CheckedByFullName: prfData.checkedBy || "N/A",
+            ApprovedByFullName: prfData.approvedBy || "N/A",
+            ReceivedByFullName: prfData.receivedBy || "N/A",
+          },
+          senderEmail,
+          smtpPassword
+        )
+
+        console.log(" Successfully sent approveBy notification")
+
+        return res.status(200).json({ success: true })
       }
     }
 
