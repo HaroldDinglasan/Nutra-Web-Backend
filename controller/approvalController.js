@@ -1,4 +1,4 @@
-const { populateAssignedApprovals, createApproval, getApprovalById, getApprovalsByUserId, updateApproval } = require("../model/approvalModel")
+const { populateAssignedApprovals, createApproval, getApprovalById, getApprovalsByUserId, updateApproval } = require("../model/approvalService")
 
 const saveApproval = async (req, res) => {
   try {
@@ -126,11 +126,11 @@ const updateApprovalById = async (req, res) => {
 
 const populateApprovals = async (req, res) => {
   try {
-    const { userId, checkedBy, approvedBy, receivedBy } = req.body
+    const { userId, checkedBy, approvedBy, receivedBy, secondCheckedBy } = req.body
 
     if (!userId) return res.status(400).json({ message: "User ID is required." })
 
-    const result = await populateAssignedApprovals(userId, checkedBy, approvedBy, receivedBy)
+    const result = await populateAssignedApprovals(userId, checkedBy, approvedBy, receivedBy, secondCheckedBy )
 
     res.status(200).json({
       success: true,

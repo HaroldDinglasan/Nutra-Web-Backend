@@ -1,33 +1,38 @@
+// Import database connection and sql helper
 const { sql, poolPurchaseRequest, poolAVLI } = require("../connectionHelper/db")
 
+// CREATE NEW APPROVAL RECORD
 const createApproval = async (approvalData) => {
   try {
+    // Connect to PurchaseRequest database
     const pool = await poolPurchaseRequest
 
-    // Validate required fields
+    // Make sure UserID is provided (required)
     if (!approvalData.UserID) {
       throw new Error("UserID is required")
     }
 
+    // If ApplicType is not provided, default is PRF
     if (!approvalData.ApplicType) {
       approvalData.ApplicType = "PRF"
     }
 
     console.log("Creating approval with data:", approvalData)
 
-    // Get the next ApproverAssignID
+    // Get the next ApproverAssignID (auto increment manually)
     const idResult = await pool
       .request()
       .query("SELECT ISNULL(MAX(ApproverAssignID), 0) + 1 AS NextID FROM AssignedApprovals")
 
     const nextId = idResult.recordset[0].NextID
 
-    // Use the provided Oids for approval IDs (these are the selected employees' Oids)
+    // If OID is not provided, set to null
     const checkedById = approvalData.CheckedById || null
+    const secondCheckedById = approvalData.SecondCheckedById || null
     const approvedById = approvalData.ApprovedById || null
     const receivedById = approvalData.ReceivedById || null
 
-    // Create a new approval record with the selected employees' Oids
+    // Insert new record into AssignedApprovals table
     await pool
       .request()
       .input("ApproverAssignID", sql.Int, nextId)
@@ -36,6 +41,8 @@ const createApproval = async (approvalData) => {
       .input("ApproverAssignDate", sql.Date, new Date())
       .input("CheckedById", sql.UniqueIdentifier, checkedById)
       .input("CheckedByEmail", sql.VarChar(100), approvalData.CheckedByEmail)
+      .input("WloSecondCheckedByEmail", sql.VarChar(100), approvalData.WloSecondCheckedByEmail)
+      .input("SecondCheckedById", sql.UniqueIdentifier, secondCheckedById)
       .input("ApprovedById", sql.UniqueIdentifier, approvedById)
       .input("ApprovedByEmail", sql.VarChar(100), approvalData.ApprovedByEmail)
       .input("ReceivedById", sql.UniqueIdentifier, receivedById)
@@ -45,16 +52,21 @@ const createApproval = async (approvalData) => {
           ApproverAssignID, UserID, ApplicType, ApproverAssignDate,
           CheckedById, CheckedByEmail, 
           ApprovedById, ApprovedByEmail, 
-          ReceivedById, ReceivedByEmail
+          ReceivedById, ReceivedByEmail,
+          WloSecondCheckedByEmail, 
+          SecondCheckedById
         ) 
         VALUES (
           @ApproverAssignID, @UserID, @ApplicType, @ApproverAssignDate,
           @CheckedById, @CheckedByEmail, 
           @ApprovedById, @ApprovedByEmail, 
-          @ReceivedById, @ReceivedByEmail
+          @ReceivedById, @ReceivedByEmail,
+          @WloSecondCheckedByEmail, 
+          @SecondCheckedById
         )
       `)
 
+    // Return inserted data
     return { id: nextId, ...approvalData }
   } catch (error) {
     console.error("Database error:", error)
@@ -62,6 +74,7 @@ const createApproval = async (approvalData) => {
   }
 }
 
+// Get one approval record using ApproverAssignID
 const getApprovalById = async (id) => {
   try {
     const pool = await poolPurchaseRequest
@@ -77,6 +90,7 @@ const getApprovalById = async (id) => {
   }
 }
 
+// Get all approvals of a specific user
 const getApprovalsByUserId = async (userId) => {
   try {
     const pool = await poolPurchaseRequest
@@ -92,11 +106,12 @@ const getApprovalsByUserId = async (userId) => {
   }
 }
 
+// Update existing approval record
 const updateApproval = async (id, approvalData) => {
   try {
     const pool = await poolPurchaseRequest
 
-    // Use the provided Oids for approval IDs (these are the selected employees' Oids)
+    // If no OID provided, set to null
     const checkedById = approvalData.CheckedById || null
     const approvedById = approvalData.ApprovedById || null
     const receivedById = approvalData.ReceivedById || null
@@ -106,6 +121,8 @@ const updateApproval = async (id, approvalData) => {
       .input("ApproverAssignID", sql.Int, id)
       .input("CheckedById", sql.UniqueIdentifier, checkedById)
       .input("CheckedByEmail", sql.VarChar(100), approvalData.CheckedByEmail)
+      .input("WloSecondCheckedByEmail", sql.VarChar(100), approvalData.WloSecondCheckedByEmail)
+      .input("SecondCheckedById", sql.UniqueIdentifier, approvalData.SecondCheckedById)
       .input("ApprovedById", sql.UniqueIdentifier, approvedById)
       .input("ApprovedByEmail", sql.VarChar(100), approvalData.ApprovedByEmail)
       .input("ReceivedById", sql.UniqueIdentifier, receivedById)
@@ -118,7 +135,8 @@ const updateApproval = async (id, approvalData) => {
           ApprovedById = @ApprovedById,
           ApprovedByEmail = @ApprovedByEmail,
           ReceivedById = @ReceivedById,
-          ReceivedByEmail = @ReceivedByEmail
+          ReceivedByEmail = @ReceivedByEmail,
+          SecondCheckedById = @SecondCheckedById
         WHERE ApproverAssignID = @ApproverAssignID
       `)
 
@@ -129,16 +147,18 @@ const updateApproval = async (id, approvalData) => {
   }
 }
 
-// Inuupdate yung CheckedById, ApprovedById, at ReceivedById ng table AssignedApprovals
-const populateAssignedApprovals = async (userId, checkedByName, approvedByName, receivedByName) => {
+// This function gets OID from SecuritySystemUser or HeadUsers
+// Then updates AssignedApprovals with correct OIDs
+const populateAssignedApprovals = async (userId, checkedByName, approvedByName, receivedByName, secondCheckedByName) => {
   try {
     const avliPool = await poolAVLI
     const purchasePool = await poolPurchaseRequest
 
-    // Hinahanap ang OID ng isang user base sa FullName sa table ng SecuritySystemUser TEST_AVLI Database
+    // Get OID using FullName
     const getEmployeeOid = async (fullName) => {
       if (!fullName) return null
       
+      // Check in SecuritySystemUser table (TEST_AVLI)
       const result = await avliPool
         .request()
         .input("fullName", sql.VarChar, fullName)
@@ -148,6 +168,7 @@ const populateAssignedApprovals = async (userId, checkedByName, approvedByName, 
           return result.recordset[0].Oid
         }
 
+      // If not found, check in HeadUsers table
       const resultHeadUser = await purchasePool
         .request()
         .input("fullName", sql.NVarChar, fullName)
@@ -155,12 +176,14 @@ const populateAssignedApprovals = async (userId, checkedByName, approvedByName, 
 
       return resultHeadUser.recordset.length > 0 ? resultHeadUser.recordset[0].Oid : null
     }
-    // Kunin lahat ng approver's OIDs
+
+    // Get all approvers' OIDs
     const checkedById = await getEmployeeOid(checkedByName)
     const approvedById = await getEmployeeOid(approvedByName)
     const receivedById = await getEmployeeOid(receivedByName)
+    const secondCheckedById = await getEmployeeOid(secondCheckedByName)
 
-    // chinecheck kung existing na ang record 
+    // Check if record already exists
     const existing = await purchasePool
       .request()
       .input("userId", sql.Int, userId)
@@ -173,25 +196,42 @@ const populateAssignedApprovals = async (userId, checkedByName, approvedByName, 
         .input("checkedById", sql.UniqueIdentifier, checkedById)
         .input("approvedById", sql.UniqueIdentifier, approvedById)
         .input("receivedById", sql.UniqueIdentifier, receivedById)
+        .input("secondCheckedById", sql.UniqueIdentifier, secondCheckedById)
         // Inuupdate ang checked, approved, received by id na maging OID ng approvers sa table ng SecuritySystemUser Database ng TEST_AVLI
         .query(`
           UPDATE AssignedApprovals
           SET CheckedById = @checkedById,
               ApprovedById = @approvedById,
-              ReceivedById = @receivedById
+              ReceivedById = @receivedById,
+              SecondCheckedById = @secondCheckedById
           WHERE UserID = @userId AND ApplicType = 'PRF'
         `)
     } else {
-      // Insert new record
+      // If not exists → INSERT
       await purchasePool
         .request()
         .input("userId", sql.Int, userId)
         .input("checkedById", sql.UniqueIdentifier, checkedById)
         .input("approvedById", sql.UniqueIdentifier, approvedById)
         .input("receivedById", sql.UniqueIdentifier, receivedById)
+        .input("secondCheckedById", sql.UniqueIdentifier, secondCheckedById)
         .query(`
-          INSERT INTO AssignedApprovals (UserID, ApplicType, CheckedById, ApprovedById, ReceivedById)
-          VALUES (@userId, 'PRF', @checkedById, @approvedById, @receivedById)
+          INSERT INTO AssignedApprovals (
+            UserID, 
+            ApplicType, 
+            CheckedById, 
+            ApprovedById, 
+            ReceivedById,
+            SecondCheckedById
+          )
+          VALUES (
+            @userId, 
+            'PRF',
+            @checkedById, 
+            @approvedById, 
+            @receivedById,
+            @secondCheckedById
+          )
         `)
     }
     console.log("✅ AssignedApprovals updated successfully.")
@@ -202,7 +242,7 @@ const populateAssignedApprovals = async (userId, checkedByName, approvedByName, 
   }
 }
 
-// GET EMAILS FROM AssignedApprovals
+// Get approvers' emails for sending notification
 const getAssignedEmails = async (userId) => {
   const pool = await poolPurchaseRequest;
   const result = await pool

@@ -1,9 +1,11 @@
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
 
-// Fetch PRF List with StockName, QTY, UOM, and dateNeeded from PRFTABLE_DETAILS
+// Get all PRF (with header + details information)
 const getPrfList = async () => {
   try {
     const pool = await poolPurchaseRequest
+
+    // Join PRFTABLE (header) and PRFTABLE_DETAILS (items)
     const result = await pool.request()
       .query(`
         SELECT 
@@ -12,7 +14,7 @@ const getPrfList = async () => {
           p.preparedBy, 
           p.prfDate, 
           p.isCancel AS prfIsCancel,  
-          p.isReject,                 -- ✅ Added
+          p.isReject,                 
           p.assignedTo,
           p.approvedBy,
           p.approvedBy_Status,
@@ -48,10 +50,11 @@ const getPrfList = async () => {
   }
 }
 
-// Update the getPrfListByUser function to properly match the preparedBy field with the username
+// Get PRF created by a specific user
 const getPrfListByUser = async (username) => {
   try {
     const pool = await poolPurchaseRequest
+
     const result = await pool
       .request()
       .input("username", sql.VarChar, username)
@@ -62,7 +65,7 @@ const getPrfListByUser = async (username) => {
           p.preparedBy, 
           p.prfDate, 
           p.isCancel AS prfIsCancel,
-          p.isReject,                 -- ✅ Added
+          p.isReject,                 
           p.assignedTo,
           p.approvedBy,
           p.approvedBy_Status,
@@ -101,12 +104,12 @@ const getPrfListByUser = async (username) => {
   }
 }
 
-// Fetch a single PRF header and its details by prfId
+// Get ONE PRF (header + all its details)
 const getPrfByNumber = async (prfId) => {
   try {
     const pool = await poolPurchaseRequest;
 
-    // Get PRF header
+    // Step 1: Get PRF header information
     const headerResult = await pool
       .request()
       .input("prfId", sql.UniqueIdentifier, prfId)
@@ -120,7 +123,7 @@ const getPrfByNumber = async (prfId) => {
           checkedBy_Status,
           prfDate,
           isCancel,
-          isReject,       -- ✅ Added
+          isReject,       
           assignedTo,
           departmentId
         FROM PRFTABLE
@@ -133,6 +136,7 @@ const getPrfByNumber = async (prfId) => {
 
     const prfHeader = headerResult.recordset[0];
 
+    // Step 2: Get all PRF item details
     const detailsResult = await pool
       .request()
       .input("prfId", sql.UniqueIdentifier, prfHeader.prfId)
@@ -144,7 +148,7 @@ const getPrfByNumber = async (prfId) => {
           QTY AS quantity,
           UOM AS unit,
           DateNeeded,
-          DateDelivered,     -- ✅ Added
+          DateDelivered,    
           Purpose,
           Description,
           status,
@@ -166,12 +170,12 @@ const getPrfByNumber = async (prfId) => {
   }
 };
 
-// ensures the status in Purchase List is updated when requestor logs back in
+// Check and update PRF status (used when requestor logs in again)
 const updatePrfListStatus = async (prfId) => {
   try {
     const pool = await poolPurchaseRequest
 
-    // Get the current PRF data to check approval status
+    // Get approval + cancel + reject status
     const prfResult = await pool
       .request()
       .input("prfId", sql.UniqueIdentifier, prfId)
@@ -180,7 +184,7 @@ const updatePrfListStatus = async (prfId) => {
           approvedBy_Status,
           receivedBy_Status,
           isCancel,
-          isReject            -- ✅ Added           
+          isReject                      
         FROM PRFTABLE
         WHERE prfId = @prfId
       `)
@@ -190,13 +194,15 @@ const updatePrfListStatus = async (prfId) => {
     }
 
     const prf = prfResult.recordset[0]
-    let status = "Pending"
+    let status = "Pending" // Default status
 
     if (prf.isReject === 1) {
       status = "Rejected"
-    } else if (prf.isCancel === 1 || prf.isCancel === true) { 
+    } 
+    else if (prf.isCancel === 1 || prf.isCancel === true) { 
       status = "Cancelled"
-    } else if (prf.approvedBy_Status && prf.approvedBy_Status.trim().toUpperCase() === "APPROVED") {
+    } 
+    else if (prf.approvedBy_Status && prf.approvedBy_Status.trim().toUpperCase() === "APPROVED") {
       status = "Approved"
     }
 

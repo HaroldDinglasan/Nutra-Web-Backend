@@ -1,4 +1,4 @@
-const { searchPrfByNumber } = require("../model/searchPrfNoModel")
+const { searchPrfByNumber } = require("../model/searchPrfNoService")
 
 const searchPrf = async (req, res) => {
   try {

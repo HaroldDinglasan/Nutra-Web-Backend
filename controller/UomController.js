@@ -1,4 +1,4 @@
-const { getUomCodesByStockId } = require("../model/UomModel")
+const { getUomCodesByStockId } = require("../model/UomService");
 
 // Fetch UOMCodes by StockId
 const fetchUomCodesByStockId = async (req, res) => {

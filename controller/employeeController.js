@@ -1,4 +1,4 @@
-const { getEmployees, getEmployeeByOid } = require("../model/employeeModel")
+const { getEmployees, getEmployeeByOid } = require("../model/employeeService")
 
 // Controller to fetch all employees
 const fetchEmployees = async (req, res) => {

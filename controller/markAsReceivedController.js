@@ -1,6 +1,6 @@
 const { markAsReceivedService, getIsDeliveredListService, getRemarksByIdService, updateRemarksService  } = require("../model/markAsReceivedService")
 const { sendEmail } = require("../lib/email-service")
-const { getPrfWithDepartment } = require("../model/prfDataModel")
+const { getPrfWithDepartment } = require("../model/prfDataService")
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
 
 // Get the email and name of the requestor (Prepared By)
@@ -156,7 +156,7 @@ const markAsReceived = async (req, res) => {
 const updateRemarks = async (req, res) => {
   try {
     const { Id } = req.params;
-    const { remarks, dateDelivered, assignedTo } = req.body;
+    const { remarks, partialDeliver, dateDelivered, assignedTo } = req.body;
 
     if (!Id) {
       return res.status(400).json({ message: "Missing remarks or ID" });
@@ -164,9 +164,10 @@ const updateRemarks = async (req, res) => {
 
     // Allow empty remarks and Date Delivered
     const safeRemarks = remarks && remarks.trim() !== ""? remarks : null;
+    const safePartialDeliver = partialDeliver && partialDeliver.trim() !== ""? partialDeliver : null;
     const safeDateDelivered = dateDelivered || null;
 
-    const affected = await updateRemarksService(Id, safeRemarks, safeDateDelivered, assignedTo);
+    const affected = await updateRemarksService(Id, safeRemarks, safePartialDeliver, safeDateDelivered, assignedTo);
 
     if (affected === 0) {
       return res.status(404).json({ message: "Record not found" });

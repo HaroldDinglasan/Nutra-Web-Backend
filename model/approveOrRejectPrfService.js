@@ -1,24 +1,79 @@
+// Import database connection
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
 
-// approve or reject prf status based on assigned check, approve or received
+// Approve PRF (Check / Approve / Receive)
 const approvePrfByHeads = async (prfId, actionType, userFullName) => {
   try {
+    // Connect to PurchaseRequest database
     const pool = await poolPurchaseRequest
 
+    // Convert actionType to lowercase (check, approve, receive)
     const normalizedActionType = actionType.toLowerCase()
 
-    // Map action type to column names
+    // Step 1: Get approval setup from AssignedApprovals table
+    // This checks who are assigned as checker, second checker, approver
+    const approvalSetup = await pool.request()
+      .input("prfId", sql.UniqueIdentifier, prfId)
+      .query(`
+          SELECT 
+            AA.CheckedById,
+            AA.SecondCheckedById,
+            AA.WloSecondCheckedByEmail,
+            AA.ApprovedById
+        FROM AssignedApprovals AA
+        INNER JOIN PRFTABLE P ON P.UserID = AA.UserID
+        WHERE P.prfId = @prfId
+        AND AA.ApplicType = 'PRF'
+      `)
+
+    const setup = approvalSetup.recordset[0]
+
+    // If no approval setup found, stop process
+    if (!setup) throw new Error("Approval setup not found.")
+
+    // Step 2: Check if this is First Check or Second Check
+    let isSecondChecker = false
+
+    // If action is "check" and there is a second checker assigned
+    if (normalizedActionType === "check" && setup.SecondCheckedById) {
+
+      // Check if first checker already approved
+      const checkStatus = await pool.request()
+        .input("prfId", sql.UniqueIdentifier, prfId)
+        .query(`
+          SELECT checkedByDateTime
+          FROM PRFTABLE
+          WHERE prfId = @prfId
+        `)
+
+      // If first checker already checked -> this is second checker
+      if (checkStatus.recordset[0].checkedByDateTime) {
+        isSecondChecker = true
+      }
+    }
+
+    
+    // Step 3: Column Mapping (Dynamic)
+    // Depending on actionType, update different columns
     const columnMapping = {
-      check: {
-        dateTimeColumn: "checkedByDateTime",
-        statusColumn: "checkedBy_Status",
-        nameColumn: "checkedBy",
-      },
+      check: isSecondChecker
+        ? {
+            dateTimeColumn: "secondCheckedByDateTime",
+            statusColumn: "secondCheckedBy_Status",
+            nameColumn: "secondCheckedBy",
+          }
+        : {
+            dateTimeColumn: "checkedByDateTime",
+            statusColumn: "checkedBy_Status",
+            nameColumn: "checkedBy",
+          },
+
       approve: {
         dateTimeColumn: "approvedByDateTime",
         statusColumn: "approvedBy_Status",
         nameColumn: "approvedBy",
       },
+
       receive: {
         dateTimeColumn: "receivedByDateTime",
         statusColumn: "receivedBy_Status",
@@ -27,10 +82,13 @@ const approvePrfByHeads = async (prfId, actionType, userFullName) => {
     }
 
     const mapping = columnMapping[normalizedActionType]
+
+    // If invalid actionType
     if (!mapping) {
-      throw new Error(`Invalid action type: ${actionType}. Expected 'check', 'approve', or 'receive'.`)
+      throw new Error(`Invalid action type: ${actionType}`)
     }
 
+    // Step 4: Update PRFTABLE
     const query = `
       UPDATE PRFTABLE 
       SET 
@@ -40,46 +98,32 @@ const approvePrfByHeads = async (prfId, actionType, userFullName) => {
       WHERE prfId = @prfId
     `
 
-    console.log(" Executing approval query:", {
-      prfId,
-      actionType: normalizedActionType,
-      userFullName,
-      dateTime: "GETDATE() (SQL Server Current Date/Time)",
-    })
-
-    const result = await pool
-      .request()
+    await pool.request()
       .input("prfId", sql.UniqueIdentifier, prfId)
       .input("status", sql.VarChar, "APPROVED")
       .input("userFullName", sql.VarChar, userFullName || "System User")
       .query(query)
 
-    const rowsAffected = result.rowsAffected[0] || 0
-
-    if (rowsAffected === 0) {
-      throw new Error(`No PRF record found with ID: ${prfId}`)
-    }
-
+    // Step 5:  Return result to controller
     return {
       success: true,
-      message: `PRF ${normalizedActionType} status updated successfully`,
-      data: {
-        prfId,
-        actionType: normalizedActionType,
-        status: "APPROVED",
-        userFullName,
-        rowsAffected,
-      },
+      isSecondChecker,
+      hasSecondChecker: !!setup.SecondCheckedById,
+      secondCheckerEmail: setup.WloSecondCheckedByEmail || null,
+      message: isSecondChecker
+        ? "Second check completed"
+        : setup.SecondCheckedById
+          ? "First check completed — route to second checker"
+          : "Check completed",
     }
+
   } catch (error) {
-    console.error(" Error updating PRF approval status:", error.message, error.stack)
-    return {
-      success: false,
-      error: error.message,
-    }
+    console.error("Approval error:", error)
+    return { success: false, error: error.message }
   }
 }
 
+// REJECT PRF
 const rejectPrfByHeads = async (prfId, userFullName, rejectionReason) => {
   try {
     const pool = await poolPurchaseRequest
@@ -92,6 +136,7 @@ const rejectPrfByHeads = async (prfId, userFullName, rejectionReason) => {
       rejectionReasonLength: rejectionReason ? rejectionReason.length : 0,
     })
 
+    // Update PRFTABLE: mark as rejected and save reason
     const query = `
       UPDATE PRFTABLE 
       SET 
@@ -109,15 +154,20 @@ const rejectPrfByHeads = async (prfId, userFullName, rejectionReason) => {
 
     const request = pool.request()
     request.input("prfId", sql.UniqueIdentifier, prfId)
+
+    // If no reason provided, default message
     request.input("rejectionReason", sql.VarChar(sql.MAX), rejectionReason && rejectionReason.trim() ? rejectionReason : "No reason provided")
+
     const result = await request.query(query)
 
     const rowsAffected = result.rowsAffected[0] || 0
 
+    // If no record updated -> PRF not found
     if (rowsAffected === 0) {
       throw new Error(`No PRF record found with ID: ${prfId}`)
     }
 
+    // Return success result
     return {
       success: true,
       message:`PRF rejected successfully`,

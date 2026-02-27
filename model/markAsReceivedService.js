@@ -1,10 +1,14 @@
+// Import database connection
 const { poolPurchaseRequest } = require("../connectionHelper/db")
 const sql = require("mssql")
 
+// Mark Stock item as Received
 const markAsReceivedService = async (Id) => {
   try {
+    // Connect to PurchaseRequest database
     const pool = await poolPurchaseRequest
 
+    // Update PRFTABLE_DETAILS
     const result = await pool
       .request()
       .input("Id", sql.Int, Id)
@@ -27,26 +31,32 @@ const markAsReceivedService = async (Id) => {
   }
 }
 
-// Dito nag uupdate si admin para sa remarks na PRFTABLE_DETAILS
-const updateRemarksService = async (id, remarks, dateDelivered, assignedTo) => {
+// Updates Remarks (Admin side)
+const updateRemarksService = async (id, remarks, partialDeliver, dateDelivered, assignedTo) => {
   try {
     const pool = await poolPurchaseRequest;
 
-    // 1️⃣ Update PRFTABLE_DETAILS (remarks + date)
+    // Step 1: Update PRFTABLE_DETAILS (remarks + date + partialDeliver)
+    // Save
+    // - remarks
+    // - partial delivery
+    // - delivery date
     await pool
       .request()
       .input("Id", sql.Int, id)
       .input("Remarks", sql.VarChar(sql.MAX), remarks)
+      .input("PartialDeliver", sql.VarChar(sql.MAX), partialDeliver)
       .input("DateDelivered", sql.DateTime, dateDelivered)
       .query(`
         UPDATE PRFTABLE_DETAILS
         SET 
           remarks = @Remarks,
+          partialDeliver = @PartialDeliver,
           DateDelivered = @DateDelivered
         WHERE Id = @Id
       `);
 
-    // 2️⃣ Update PRFTABLE (assignedTo)
+    // Step 2: Update PRFTABLE (assignedTo)
     await pool
       .request()
       .input("Id", sql.Int, id)
@@ -66,13 +76,22 @@ const updateRemarksService = async (id, remarks, dateDelivered, assignedTo) => {
   }
 };
 
+// Gte Remarks (For displaying in modal)
 const getRemarksByIdService = async (Id) => {
   try {
     const pool = await poolPurchaseRequest;
+
+    // Get remarks, partial delivery, and delivery date
     const result = await pool
       .request()
       .input("Id", sql.Int, Id)
-      .query("SELECT remarks, DateDelivered FROM PRFTABLE_DETAILS WHERE Id = @Id");
+      .query(`SELECT 
+        remarks, 
+        partialDeliver, 
+        DateDelivered 
+      FROM PRFTABLE_DETAILS 
+      WHERE Id = @Id
+    `);
     return result.recordset[0] || null;
   } catch (error) {
     console.error("Error fetching remarks:", error);
@@ -80,10 +99,13 @@ const getRemarksByIdService = async (Id) => {
   }
 };
 
+// Get all Delivered stock items
 const getIsDeliveredListService = async () => {
   try {
     const pool = await poolPurchaseRequest
 
+    // JOIN PRFTABLE and PRFTABLE_DETAILS
+    // Get all items where isDelivered = 1
     const result = await pool.request().query(`
         SELECT 
             P.prfId,

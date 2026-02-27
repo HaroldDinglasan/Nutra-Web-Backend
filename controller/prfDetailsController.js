@@ -1,4 +1,4 @@
-const { savePRFDetails, updatePrfDetails } = require("../model/prfDetailsModel");
+const { savePRFDetails, updatePrfDetails } = require("../model/prfDetailService");
 
 const savePRFDetailsController = async (req, res) => {
     try {
