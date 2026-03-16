@@ -65,10 +65,6 @@ const registerEmployee = async (departmentType, departmentId, fullName, username
         deptId = 6
       break
 
-      case "LEGAL":
-        deptId = 7
-      break
-
       case "FINANCE":
         deptId = 8
       break
@@ -115,6 +111,14 @@ const registerEmployee = async (departmentType, departmentId, fullName, username
 
       case "QC":
         deptId = 19
+      break
+
+      case "ARND":
+        deptId = 20
+      break
+
+      case "TREASURY":
+        deptId = 21
       break
 
       default:
