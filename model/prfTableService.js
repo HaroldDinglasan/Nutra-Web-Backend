@@ -125,6 +125,7 @@ const savePrfHeader = async (prfData) => {
     }
 
     console.log("[v0] Inserting PRF with departmentCharge:", prfData.departmentCharge)
+    console.log("[v0] Inserting PRF with projectCode:", prfData.projectCode)
 
     // Step 7: Insert ng prf header details
     await pool
@@ -140,13 +141,14 @@ const savePrfHeader = async (prfData) => {
       .input("approvedBy", approvedByName)
       .input("receivedBy", receivedByName)
       .input("departmentCharge", sql.VarChar(100), prfData.departmentCharge || null) 
+      .input("projectCode", sql.VarChar(250), prfData.projectCode || null )
       .query(`
         INSERT INTO PRFTABLE 
         (prfId, prfNo, prfDate, preparedBy, UserID, departmentId, 
-        checkedBy, secondCheckedBy, approvedBy, receivedBy, departmentCharge)
+        checkedBy, secondCheckedBy, approvedBy, receivedBy, departmentCharge, projectCode)
         VALUES
         (@prfId, @prfNo, @prfDate, @preparedBy, @userId, @departmentId, 
-        @checkedBy, @secondCheckedBy, @approvedBy, @receivedBy, @departmentCharge)
+        @checkedBy, @secondCheckedBy, @approvedBy, @receivedBy, @departmentCharge, @projectCode)
       `)
 
     console.log("✅ PRF header saved with approval names and department charge:", {
@@ -154,6 +156,7 @@ const savePrfHeader = async (prfData) => {
       approvedByName,
       receivedByName,
       departmentCharge: prfData.departmentCharge,
+      projectCode: prfData.projectCode,
     })
     return prfId
   } catch (error) {
