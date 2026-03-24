@@ -23,12 +23,19 @@ const searchPrf = async (req, res) => {
         cancelButtonLabel = `Cancel (${cancelCount}/3)`
       }
 
-      res.json({
+      // Merge projectCode into header object for frontend to access as data.header.projectCode
+      const responseData = {
         ...result,
+        header: {
+          ...result.header,
+          projectCode: result.header.projectCode || "",
+        },
         cancelCount,
         isFullyCancelled,
         cancelButtonLabel,
-      })
+      }
+
+      res.json(responseData)
     } else {
       res.json(result)
     }

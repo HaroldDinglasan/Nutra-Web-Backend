@@ -1,5 +1,6 @@
 const { pool } = require("mssql");
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db");
+const { sendIM07CorplanNotification } = require("../lib/email-service")
 
 //  Fetch the 3 fixed stock checkers from Users_Info table
 // Names: Ryeanna Lois Campos, Regienel S. Regalado, Jazzlyn Villaruel
@@ -67,6 +68,9 @@ const getPrfAndStockDetails = async (prfId, stockCode) => {
     .query(`
       SELECT 
         p.prfNo,
+        p.preparedBy,
+        p.departmentCharge,
+        d.stockCode,
         d.stockName
       FROM PRFTABLE p
       LEFT JOIN PRFTABLE_DETAILS d
@@ -135,13 +139,8 @@ const getLatestStockCheckByPrfId = async (prfId, stockCode) => {
 };
 
 // APPROVE STOCK
-const approveStock = async ({
-  prfId,
-  stockCode,
-  stockName,
-  notedBy,
-  verifiedBy,
-}) => {
+const approveStock = async ({ prfId, stockCode, stockName, notedBy, verifiedBy,}) => {
+
   const pool = await poolPurchaseRequest;
 
   await pool.request()
@@ -170,6 +169,30 @@ const approveStock = async ({
         1
       )
     `);
+
+    // Notify Corplan if IM-07 stock code
+    if (stockCode && stockCode.startsWith("IM-07")) {
+
+      console.log(" IM-07 detected:", stockCode);
+
+      const prfDetails = await getPrfAndStockDetails(prfId, stockCode);
+
+      if (prfDetails) {
+
+        await sendIM07CorplanNotification({
+          prfNo: prfDetails.prfNo,
+          preparedBy: prfDetails.preparedBy,
+          stockCode: prfDetails.stockCode,
+          stockName: prfDetails.stockName,
+          departmentCharge: prfDetails.departmentCharge,
+          company: process.env.COMPANY_NAME || "NutraTech"
+        });
+
+        console.log(" IM-07 notification sent to Corplan department");
+      } else {
+        console.warn(" No PRF details found for IM-07 notification");
+      }
+    }
 };
 
 
