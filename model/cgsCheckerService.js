@@ -69,7 +69,7 @@ const getPrfAndStockDetails = async (prfId, stockCode) => {
       SELECT 
         p.prfNo,
         p.preparedBy,
-        p.departmentCharge,
+        p.projectCode,
         d.stockCode,
         d.stockName
       FROM PRFTABLE p
@@ -184,7 +184,7 @@ const approveStock = async ({ prfId, stockCode, stockName, notedBy, verifiedBy,}
           preparedBy: prfDetails.preparedBy,
           stockCode: prfDetails.stockCode,
           stockName: prfDetails.stockName,
-          departmentCharge: prfDetails.departmentCharge,
+          projectCode: prfDetails.projectCode,
           company: process.env.COMPANY_NAME || "NutraTech"
         });
 
