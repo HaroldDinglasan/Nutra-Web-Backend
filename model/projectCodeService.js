@@ -1,19 +1,38 @@
-const { sql, poolAVLI } = require("../connectionHelper/db");
+const getDbPool = require("../utils/getDbPool")
 
-// Get all Project Codes from Projects table
-const getProjectCodeList = async () => {
+// Get all ACTIVE Project Codes from NTBI2
+const getProjectCodeList = async (company) => {
     try {
-        const pool = await poolAVLI;
+
+        const pool = await getDbPool(company);
 
         const result = await pool
             .request()
             .query(`
-                SELECT
+                SELECT 
                     Id,
                     ProjectCode,
                     Description,
-                    IsActive
-                FROM [TEST_AVLI].[dbo].[Projects]
+                    IsActive,
+                    DivisionId,
+                    OptimisticLockField,
+                    CompanyName
+                FROM Projects
+                WHERE IsActive = 1
+                AND ProjectCode NOT IN (
+                    'PR-EXEC',
+                    'PR-LUZ',
+                    'PR-VISMIN',
+                    'PROJ-LT',
+                    'PROJ-LT 2025',
+                    'PROJ-LT 2026',
+                    'PROJ-LT-2024',
+                    'PROJ-ST',
+                    'PROJ-ST-2024',
+                    'PROJ-ST-2025',
+                    'PROJ-ST-2026'
+                )
+                ORDER BY ProjectCode ASC
             `);
 
         return result.recordset;

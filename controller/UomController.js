@@ -3,13 +3,19 @@ const { getUomCodesByStockId } = require("../model/UomService");
 // Fetch UOMCodes by StockId
 const fetchUomCodesByStockId = async (req, res) => {
   try {
-    const { stockId } = req.params
+    const { stockId } = req.params;
+    const { company } = req.query;
+
+    console.log("📌 Company received:", company);
+    console.log("📌 StockId received:", stockId);
 
     if (!stockId) {
       return res.status(400).json({ message: "StockId is required" })
     }
     console.log(`Controller: Fetching UOMCodes for StockId: ${stockId}`)
-    const uomCodes = await getUomCodesByStockId(stockId)
+
+    const uomCodes = await getUomCodesByStockId(stockId, company)
+
     console.log(`Controller: Returning ${uomCodes.length} UOMCodes`)
 
     res.status(200).json(uomCodes)
