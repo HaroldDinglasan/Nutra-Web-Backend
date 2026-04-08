@@ -267,6 +267,20 @@ router.post("/notifications/stock-availability", async (req, res) => {
       smtpPassword 
     } = req.body;
 
+    let finalRecipients = recipients;
+
+    // ✅ IM-02 → send ONLY to MMD (Fernan)
+    if (stockCode && stockCode.startsWith("IM-02")) {
+      finalRecipients = [
+        {
+          name: "Fernan C. Mananguit",
+          email: "Fernan.Mananguit@nutratech.com.ph"
+        }
+      ];
+
+      console.log("[v0] IM-02 detected → overriding recipients to MMD only");
+    }
+
     console.log("[v0] Received stock availability notification request:", {
       stockCode,
       stockName,
@@ -302,7 +316,7 @@ router.post("/notifications/stock-availability", async (req, res) => {
       finalPrfNo,   // ✅ guaranteed from DB
       preparedBy || prfDataFromDb.preparedBy || "System",
       company || "NutraTech Biopharma, Inc",
-      recipients,
+      finalRecipients, // ✅ FIXED
       senderEmail || process.env.SMTP_USER,
       smtpPassword || process.env.SMTP_PASSWORD
     );
