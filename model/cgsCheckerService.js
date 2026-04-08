@@ -4,8 +4,19 @@ const { sendIM07CorplanNotification } = require("../lib/email-service")
 
 //  Fetch the 3 fixed stock checkers from Users_Info table
 // Names: Ryeanna Lois Campos, Regienel S. Regalado, Jazzlyn Villaruel
-const getStockCheckersFromDB = async () => {
+const getStockCheckersFromDB = async (stockCode) => {
   try {
+
+    // ✅ IM-02 MMD STOCK CODE CHECKER
+    if (stockCode && stockCode.startsWith("IM-02")) {
+      console.log(" IM-02 detected → routing to MMD");
+      return [
+        {
+          name: "Fernan C. Mananguit",
+          email: "Fernan.Mananguit@nutratech.com.ph"
+        }
+      ];
+    }
     
     // Connect to PurchaseRequest database
     const pool = await poolPurchaseRequest;
