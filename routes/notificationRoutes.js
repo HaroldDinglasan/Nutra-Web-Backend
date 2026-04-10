@@ -114,7 +114,7 @@ router.post("/notifications/send/:approvalId", async (req, res) => {
         prfDate: dbPrfData.prfDate,
         preparedBy: dbPrfData.preparedBy,
         departmentId: dbPrfData.departmentId,
-        departmentCharge: dbPrfData.departmentCharge || dbPrfData.departmentType, // <CHANGE> Pass departmentCharge from database
+        projectCode: dbPrfData.projectCode || "N/A", // <CHANGE> Pass departmentCharge from database
         company: company || "NutraTech Biopharma, Inc",
         replyTo: senderEmail,
         CheckedByFullName: checkedBy?.FullName || "N/A",
@@ -221,7 +221,7 @@ router.post("/notifications/send-direct", async (req, res) => {
         prfDate: dbPrfData.prfDate,
         preparedBy: dbPrfData.preparedBy,
         departmentId: dbPrfData.departmentId,
-        departmentCharge: dbPrfData.departmentCharge || dbPrfData.departmentType, // <CHANGE> Pass departmentCharge from database
+        projectCode: dbPrfData.projectCode || "N/A", // <CHANGE> Pass departmentCharge from database
         company: company || "NutraTech Biopharma, Inc",
         replyTo: senderEmail,
         CheckedByFullName: prfApproverNames?.checkedBy || checkedByName || "N/A", // dinagdag para hindi mawala ang fullnames sa Outlook notification
@@ -274,7 +274,7 @@ router.post("/notifications/stock-availability", async (req, res) => {
       finalRecipients = [
         {
           name: "Fernan C. Mananguit",
-          email: "Fernan.Mananguit@nutratech.com.ph"
+          email: "Harold.Dinglasan@nutratech.com.ph"
         }
       ];
 

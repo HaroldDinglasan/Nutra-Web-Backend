@@ -13,7 +13,7 @@ const getStockCheckersFromDB = async (stockCode) => {
       return [
         {
           name: "Fernan C. Mananguit",
-          email: "Fernan.Mananguit@nutratech.com.ph"
+          email: "Harold.Dinglasan@nutratech.com.ph"
         }
       ];
     }
