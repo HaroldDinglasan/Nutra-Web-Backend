@@ -5,6 +5,7 @@ const { getPrfById, getPrfByNumber, getLatestPrfByUser, getPrfWithDepartment } =
 const { getEmployeeByOid } = require("../model/employeeService")
 const { sendStockAvailabilityNotification } = require("../lib/email-service")
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
+const { getStockCheckersFromDB } = require("../model/cgsCheckerService")
 
 const router = express.Router()
 
@@ -114,7 +115,7 @@ router.post("/notifications/send/:approvalId", async (req, res) => {
         prfDate: dbPrfData.prfDate,
         preparedBy: dbPrfData.preparedBy,
         departmentId: dbPrfData.departmentId,
-        departmentCharge: dbPrfData.departmentCharge || dbPrfData.departmentType, // <CHANGE> Pass departmentCharge from database
+        projectCode: dbPrfData.projectCode || "N/A", // <CHANGE> Pass departmentCharge from database
         company: company || "NutraTech Biopharma, Inc",
         replyTo: senderEmail,
         CheckedByFullName: checkedBy?.FullName || "N/A",
@@ -221,7 +222,7 @@ router.post("/notifications/send-direct", async (req, res) => {
         prfDate: dbPrfData.prfDate,
         preparedBy: dbPrfData.preparedBy,
         departmentId: dbPrfData.departmentId,
-        departmentCharge: dbPrfData.departmentCharge || dbPrfData.departmentType, // <CHANGE> Pass departmentCharge from database
+        projectCode: dbPrfData.projectCode || "N/A", // <CHANGE> Pass departmentCharge from database
         company: company || "NutraTech Biopharma, Inc",
         replyTo: senderEmail,
         CheckedByFullName: prfApproverNames?.checkedBy || checkedByName || "N/A", // dinagdag para hindi mawala ang fullnames sa Outlook notification
@@ -257,32 +258,54 @@ router.post("/notifications/stock-availability", async (req, res) => {
   try {
     const { 
       prfId,
-      stockCode, 
-      stockName, 
-      prfNo, 
       preparedBy, 
       company, 
-      recipients, 
       senderEmail, 
       smtpPassword 
     } = req.body;
 
-    console.log("[v0] Received stock availability notification request:", {
-      stockCode,
-      stockName,
-      prfNo,
-      recipientCount: recipients?.length
-    });
-
-    // Validate required fields
-    if (!prfId || !stockCode || !stockName || !recipients || recipients.length === 0) {
+    if (!prfId) {
       return res.status(400).json({
         success: false,
-        message: "Missing required fields: stockCode, stockName, prfNo, recipients"
+        message: "Missing prfId"
       });
     }
 
-    // Fetch PRF from DB to guarantee PRF No exists
+    // ✅ STEP 1: Get all stock items from DB
+    const pool = await poolPurchaseRequest;
+
+    const stockResult = await pool.request()
+      .input("prfId", sql.UniqueIdentifier, prfId)
+      .query(`
+        SELECT stockCode, stockName
+        FROM PRFTABLE_DETAILS
+        WHERE prfId = @prfId
+      `);
+
+    if (stockResult.recordset.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No stock items found for this PRF"
+      });
+    }
+
+    // ✅ STEP 2: Remove duplicates
+    const uniqueMap = new Map();
+
+    stockResult.recordset.forEach(item => {
+      if (!uniqueMap.has(item.stockCode)) {
+        uniqueMap.set(item.stockCode, item.stockName);
+      }
+    });
+
+    const uniqueStocks = Array.from(uniqueMap, ([code, name]) => ({
+      code,
+      name
+    }));
+
+    console.log("✅ Unique Stocks:", uniqueStocks);
+
+    // ✅ STEP 3: Get PRF details
     const prfDataFromDb = await getPrfById(prfId);
 
     if (!prfDataFromDb) {
@@ -294,39 +317,69 @@ router.post("/notifications/stock-availability", async (req, res) => {
 
     const finalPrfNo = prfDataFromDb.prfNo;
 
-    // Send the notification
-      const result = await sendStockAvailabilityNotification(
+    const results = [];
+
+    // ✅ STEP 4: GET ALL RECIPIENTS (NO LOOP PER EMAIL)
+    let allRecipientsMap = new Map();
+
+    // collect recipients from all stock codes
+    for (const stock of uniqueStocks) {
+      let recipients = await getStockCheckersFromDB(stock.code);
+
+      // IM-02 override
+      if (stock.code.startsWith("IM-02")) {
+        recipients = [
+          {
+            name: "Fernan C. Mananguit",
+            email: "Fernan.Mananguit@nutratech.com.ph"
+          }
+        ];
+      }
+
+      recipients.forEach(r => {
+        if (!allRecipientsMap.has(r.email)) {
+          allRecipientsMap.set(r.email, r);
+        }
+      });
+    }
+
+    // ✅ FINAL UNIQUE RECIPIENTS
+    const finalRecipients = Array.from(allRecipientsMap.values());
+
+    console.log("📧 Final Recipients:", finalRecipients);
+
+    // ✅ PREPARE STOCK ITEMS ARRAY
+    const stockItems = uniqueStocks.map(stock => ({
+      stockCode: stock.code,
+      stockName: stock.name
+    }));
+
+    // ✅ SEND ONLY ONE EMAIL
+    const result = await sendStockAvailabilityNotification(
       prfId,
-      stockCode,
-      stockName,
-      finalPrfNo,   // ✅ guaranteed from DB
+      stockItems, // ✅ ARRAY now
+      finalPrfNo,
       preparedBy || prfDataFromDb.preparedBy || "System",
       company || "NutraTech Biopharma, Inc",
-      recipients,
+      finalRecipients,
       senderEmail || process.env.SMTP_USER,
       smtpPassword || process.env.SMTP_PASSWORD
     );
 
-    if (result.success) {
-      console.log("✅ Stock availability notifications sent successfully");
-      return res.status(200).json({
-        success: true,
-        message: "Stock availability notifications sent to all recipients",
-        results: result.results
-      });
-    } else {
-      console.error("❌ Failed to send stock availability notifications");
-      return res.status(500).json({
-        success: false,
-        message: "Failed to send notifications",
-        error: result.error
-      });
-    }
+    console.log("✅ Single stock notification sent");
+
+    // ✅ RESPONSE
+    return res.status(200).json({
+      success: true,
+      message: "Stock notification sent (single email)",
+      result
+    });
+
   } catch (error) {
     console.error("❌ Error in stock-availability route:", error.message);
     res.status(500).json({
       success: false,
-      message: "Server error processing stock availability notification",
+      message: "Server error",
       error: error.message
     });
   }

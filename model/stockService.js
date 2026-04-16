@@ -1,11 +1,22 @@
-const { sql, poolAVLI } = require("../connectionHelper/db")
+const getDbPool = require("../utils/getDbPool")
 
 // Get Stocks (Id, Stock Code, BaseUOM, and Stock Name)
-const getStocks = async () => {
+const getStocks = async (company) => {
   try {
-    const pool = await poolAVLI
-    // query to include Id field
-    const result = await pool.request().query("SELECT Id, StockCode, BaseUOM, StockName FROM Stocks")
+    
+    const pool = await getDbPool(company);
+
+    const result = await pool
+    .request()
+    .query(
+      `Select 
+        Stocks.Id, 
+        StockName, 
+        StockCode, 
+        BaseUOM 
+        FROM Stocks
+        WHERE IsActive = 1
+      `);
 
     console.log(`Fetched ${result.recordset.length} stocks with Id field`)
 

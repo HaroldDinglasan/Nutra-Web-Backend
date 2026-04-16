@@ -1,11 +1,12 @@
-const { sql, poolAVLI } = require("../connectionHelper/db")
+const getDbPool = require("../utils/getDbPool")
+const sql = require("mssql")
 
 // Get UOM (Unit of Measure) list based on stockId or stockCode
-const getUomCodesByStockId = async (stockId) => {
+const getUomCodesByStockId = async (stockId, company) => {
   try {
     console.log(`Attempting to fetch UOMCodes for StockId: ${stockId}`)
 
-    const pool = await poolAVLI
+    const pool = await getDbPool(company);
 
     // Step 1: If stockId is 'all'
     // Return all UOM records from UOMs table
