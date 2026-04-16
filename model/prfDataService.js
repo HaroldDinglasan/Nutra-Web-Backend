@@ -134,6 +134,7 @@ const getPrfWithDepartment = async (prfId) => {
           p.preparedBy,
           p.departmentId,
           p.departmentCharge,
+          p.projectCode,
           p.checkedBy,
           p.secondCheckedBy,
           p.approvedBy,
