@@ -93,6 +93,21 @@ const getPrfAndStockDetails = async (prfId, stockCode) => {
   return result.recordset[0];
 };
 
+// ✅ GET ALL STOCK ITEMS FOR A PRF (NEW)
+const getAllStockItemsByPrfId = async (prfId) => {
+  const pool = await poolPurchaseRequest;
+
+  const result = await pool.request()
+    .input("prfId", sql.UniqueIdentifier, prfId)
+    .query(`
+      SELECT stockCode, stockName
+      FROM PRFTABLE_DETAILS
+      WHERE prfId = @prfId
+    `);
+
+  return result.recordset;
+};
+
 
 // GET REQUESTOR NAME AND EMAIL BY PRF ID
 const getRequestorByPrfId = async (prfId) => {
@@ -257,5 +272,6 @@ module.exports = {
   getLatestStockCheckByPrfId, 
   approveStock, 
   rejectStock, 
-  getPrfAndStockDetails 
+  getPrfAndStockDetails,
+  getAllStockItemsByPrfId
 };

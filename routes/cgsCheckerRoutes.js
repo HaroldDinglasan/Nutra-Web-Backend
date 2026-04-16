@@ -4,8 +4,37 @@ const axios = require("axios");
 
 const { getStockCheckersFromDB, getRequestorByPrfId, getPrfAndStockDetails, isAlreadyChecked, getLatestStockCheckByPrfId, approveStock, rejectStock,  } = require("../model/cgsCheckerService");
 const { sendStockAvailableToRequestor, sendStockNotAvailableToRequestor} = require("../lib/email-service")
+const { getAllStockItemsByPrfId } = require("../model/cgsCheckerService")
 
 const router = express.Router();
+
+// GET ALL STOCK ITEMS BY PRF ID
+router.get("/cgs-stock/all-items/:prfId", async (req, res) => {
+  try {
+    const { prfId } = req.params;
+
+    if (!prfId) {
+      return res.status(400).json({
+        success: false,
+        message: "PRF ID is required",
+      });
+    }
+
+    const items = await getAllStockItemsByPrfId(prfId);
+
+    return res.status(200).json({
+      success: true,
+      data: items,
+    });
+
+  } catch (error) {
+    console.error("Error fetching stock items:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
 
 
 // GET /api/get-stock-checkers
@@ -229,6 +258,49 @@ router.get("/cgs-stock/reject", async (req, res) => {
   }
 });
 
+// Helper function to check if checkBy notification has already been sent for this PRF
+const hasCheckByNotificationBeenSent = async (prfId) => {
+  try {
+    const { sql, poolPurchaseRequest } = require("../connectionHelper/db");
+    const pool = await poolPurchaseRequest;
+    
+    const result = await pool.request()
+      .input("prfId", sql.UniqueIdentifier, prfId)
+      .query(`
+        SELECT notificationSent_CheckBy
+        FROM PRFTABLE 
+        WHERE prfId = @prfId
+      `);
+    
+    if (result.recordset.length > 0) {
+      return result.recordset[0].notificationSent_CheckBy === 1 || result.recordset[0].notificationSent_CheckBy === true;
+    }
+    return false;
+  } catch (error) {
+    console.error("[v0] Error checking notification sent flag:", error);
+    return false;
+  }
+};
+
+// Helper function to mark that checkBy notification has been sent for this PRF
+const markCheckByNotificationAsSent = async (prfId) => {
+  try {
+    const { sql, poolPurchaseRequest } = require("../connectionHelper/db");
+    const pool = await poolPurchaseRequest;
+    
+    await pool.request()
+      .input("prfId", sql.UniqueIdentifier, prfId)
+      .query(`
+        UPDATE PRFTABLE 
+        SET notificationSent_CheckBy = 1 
+        WHERE prfId = @prfId
+      `);
+    
+    console.log("[v0] Marked checkBy notification as sent for PRF:", prfId);
+  } catch (error) {
+    console.error("[v0] Error marking notification as sent:", error);
+  }
+};
 
 // APPROVE FROM STOCK APPROVE AVAILABILITY.JSX
 router.post("/cgs-stock/approve", async (req, res) => {
@@ -289,9 +361,13 @@ router.post("/cgs-stock/approve", async (req, res) => {
     console.log("[v0] Department Type:", prfDataForDeptCheck?.departmentType);
     console.log("[v0] Skip CheckedBy Approval:", skipCheckedByApproval);
     
+    // ✅ CHECK IF NOTIFICATION HAS ALREADY BEEN SENT FOR THIS PRF
+    const notificationAlreadySent = await hasCheckByNotificationBeenSent(prfId);
+    console.log("[v0] CheckBy notification already sent for this PRF?", notificationAlreadySent);
+    
     // AFTER requestor notification is sent, NOW send notification to checkBy person
-    // UNLESS the department should skip this step
-    if (!skipCheckedByApproval) {
+    // UNLESS the department should skip this step OR notification was already sent
+    if (!skipCheckedByApproval && !notificationAlreadySent) {
       console.log("[v0] Now sending notification to checkBy person...");
       try {
         const { sql, poolPurchaseRequest } = require("../connectionHelper/db");
@@ -367,6 +443,8 @@ router.post("/cgs-stock/approve", async (req, res) => {
               
               if (response.data.success) {
                 console.log("[v0] ✅ Notification sent to checkBy person after requestor notification");
+                // ✅ MARK NOTIFICATION AS SENT
+                await markCheckByNotificationAsSent(prfId);
               } else {
                 console.error("[v0] API returned error:", response.data);
               }
@@ -384,6 +462,8 @@ router.post("/cgs-stock/approve", async (req, res) => {
         console.error("[v0] Stack trace:", checkByError.stack);
         // Don't fail the entire approval if checkBy notification fails
       }
+    } else if (notificationAlreadySent) {
+      console.log("[v0] ✅ CheckBy notification already sent for this PRF - skipping duplicate");
     } else {
       console.log("[v0] ✅ SPECIAL DEPARTMENT - SKIPPING checkBy NOTIFICATION, sending to approvedBy instead");
       try {
