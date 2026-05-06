@@ -4,8 +4,37 @@ const axios = require("axios");
 
 const { getStockCheckersFromDB, getRequestorByPrfId, getPrfAndStockDetails, isAlreadyChecked, getLatestStockCheckByPrfId, approveStock, rejectStock,  } = require("../model/cgsCheckerService");
 const { sendStockAvailableToRequestor, sendStockNotAvailableToRequestor} = require("../lib/email-service")
+const { getAllStockItemsByPrfId } = require("../model/cgsCheckerService")
 
 const router = express.Router();
+
+// GET ALL STOCK ITEMS BY PRF ID
+router.get("/cgs-stock/all-items/:prfId", async (req, res) => {
+  try {
+    const { prfId } = req.params;
+
+    if (!prfId) {
+      return res.status(400).json({
+        success: false,
+        message: "PRF ID is required",
+      });
+    }
+
+    const items = await getAllStockItemsByPrfId(prfId);
+
+    return res.status(200).json({
+      success: true,
+      data: items,
+    });
+
+  } catch (error) {
+    console.error("Error fetching stock items:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
 
 
 // GET /api/get-stock-checkers
@@ -13,9 +42,9 @@ const router = express.Router();
 // Returns their email addresses and full names
 router.get("/get-stock-checkers", async (req, res) => {
   try {
+    const { stockCode } = req.query;
 
-    // Get stock checkers from DB
-    const stockCheckers = await getStockCheckersFromDB();
+    const stockCheckers = await getStockCheckersFromDB(stockCode);
 
     if (!stockCheckers || stockCheckers.length === 0) {
       return res.status(404).json({
@@ -128,7 +157,7 @@ router.get("/cgs-stock/approve", async (req, res) => {
             };
 
             await axios.post(
-              "http://localhost:5000/api/notifications/send-direct",
+              "http://192.168.0.9:8099/api/notifications/send-direct",
               notificationPayload
             );
 
@@ -230,6 +259,51 @@ router.get("/cgs-stock/reject", async (req, res) => {
 });
 
 
+// Helper function to check if checkBy notification has already been sent for this PRF
+const hasCheckByNotificationBeenSent = async (prfId) => {
+  try {
+    const { sql, poolPurchaseRequest } = require("../connectionHelper/db");
+    const pool = await poolPurchaseRequest;
+    
+    const result = await pool.request()
+      .input("prfId", sql.UniqueIdentifier, prfId)
+      .query(`
+        SELECT notificationSent_CheckBy
+        FROM PRFTABLE 
+        WHERE prfId = @prfId
+      `);
+    
+    if (result.recordset.length > 0) {
+      return result.recordset[0].notificationSent_CheckBy === 1 || result.recordset[0].notificationSent_CheckBy === true;
+    }
+    return false;
+  } catch (error) {
+    console.error("[v0] Error checking notification sent flag:", error);
+    return false;
+  }
+};
+
+// Helper function to mark that checkBy notification has been sent for this PRF
+const markCheckByNotificationAsSent = async (prfId) => {
+  try {
+    const { sql, poolPurchaseRequest } = require("../connectionHelper/db");
+    const pool = await poolPurchaseRequest;
+    
+    await pool.request()
+      .input("prfId", sql.UniqueIdentifier, prfId)
+      .query(`
+        UPDATE PRFTABLE 
+        SET notificationSent_CheckBy = 1 
+        WHERE prfId = @prfId
+      `);
+    
+    console.log("[v0] Marked checkBy notification as sent for PRF:", prfId);
+  } catch (error) {
+    console.error("[v0] Error marking notification as sent:", error);
+  }
+};
+
+
 // APPROVE FROM STOCK APPROVE AVAILABILITY.JSX
 router.post("/cgs-stock/approve", async (req, res) => {
   try {
@@ -279,98 +353,195 @@ router.post("/cgs-stock/approve", async (req, res) => {
       console.log("[v0] ✅ Stock approved notification sent to requestor:", requestor.outlookEmail);
     }
 
+    // Check if requestor's department should skip checkedBy approval
+    const { getPrfWithDepartment } = require("../model/prfDataService");
+    const { shouldSkipCheckedByApproval } = require("../controller/approveOrRejectPrfController");
+    
+    const prfDataForDeptCheck = await getPrfWithDepartment(prfId);
+    const skipCheckedByApproval = shouldSkipCheckedByApproval(prfDataForDeptCheck?.departmentType);
+    
+    console.log("[v0] Department Type:", prfDataForDeptCheck?.departmentType);
+    console.log("[v0] Skip CheckedBy Approval:", skipCheckedByApproval);
+
+    // ✅ CHECK IF NOTIFICATION HAS ALREADY BEEN SENT FOR THIS PRF
+    const notificationAlreadySent = await hasCheckByNotificationBeenSent(prfId);
+    console.log("[v0] CheckBy notification already sent for this PRF?", notificationAlreadySent);
+
+    
     // AFTER requestor notification is sent, NOW send notification to checkBy person
-    console.log("[v0] Now sending notification to checkBy person...");
-    try {
-      const { sql, poolPurchaseRequest } = require("../connectionHelper/db");
-      
-      const pool = await poolPurchaseRequest;
-      
-      // First, get the UserID from PRFTABLE to find the AssignedApprovals record
-      const prfUserResult = await pool
-        .request()
-        .input("prfId", sql.UniqueIdentifier, prfId)
-        .query(`
-          SELECT UserId, checkedBy, approvedBy, receivedBy
-          FROM PRFTABLE 
-          WHERE prfId = @prfId
-        `);
-      
-      const prfRecord = prfUserResult.recordset[0];
-      const prfUserId = prfRecord?.UserId;
-      
-      if (!prfUserId) {
-        console.warn("[v0] No UserId found in PRFTABLE for PRF:", prfId);
-        // Don't return here - allow stock approval to succeed but skip checkBy notification
-      } else {
-        // Get approver emails from AssignedApprovals table
-        const approversResult = await pool
+    // UNLESS the department should skip this step OR notification was already sent
+    if (!skipCheckedByApproval && !notificationAlreadySent) {
+      console.log("[v0] Now sending notification to checkBy person...");
+      try {
+        const { sql, poolPurchaseRequest } = require("../connectionHelper/db");
+        
+        const pool = await poolPurchaseRequest;
+        
+        // First, get the UserID from PRFTABLE to find the AssignedApprovals record
+        const prfUserResult = await pool
           .request()
-          .input("userId", sql.Int, prfUserId)
+          .input("prfId", sql.UniqueIdentifier, prfId)
           .query(`
-            SELECT 
-              CheckedByEmail,
-              ApprovedByEmail,
-              ReceivedByEmail
-            FROM AssignedApprovals 
-            WHERE UserID = @userId 
-            AND ApplicType = 'PRF'
+            SELECT UserId, checkedBy, approvedBy, receivedBy
+            FROM PRFTABLE 
+            WHERE prfId = @prfId
           `);
         
-        const approvers = approversResult.recordset[0] || {};
+        const prfRecord = prfUserResult.recordset[0];
+        const prfUserId = prfRecord?.UserId;
         
-        console.log("[v0] Approver emails found from AssignedApprovals:", {
-          checkedByEmail: approvers.CheckedByEmail,
-          approvedByEmail: approvers.ApprovedByEmail,
-          receivedByEmail: approvers.ReceivedByEmail,
-          prfCheckedBy: prfRecord?.checkedBy,
-          prfApprovedBy: prfRecord?.approvedBy,
-          prfReceivedBy: prfRecord?.receivedBy,
-        });
-        
-        // Validate that we have at least the checkBy email
-        if (!approvers.CheckedByEmail) {
-          console.warn("[v0] No CheckedByEmail found in AssignedApprovals for UserID:", prfUserId);
+        if (!prfUserId) {
+          console.warn("[v0] No UserId found in PRFTABLE for PRF:", prfId);
+          // Don't return here - allow stock approval to succeed but skip checkBy notification
         } else {
-          // Send checkBy notification through the send-direct endpoint
-          try {
-            const notificationPayload = {
-              prfId,
-              prfNo: details?.prfNo || "",
-              preparedBy: requestor?.preparedBy || "System User",
-              company: "NutraTech Biopharma, Inc",
-              checkedByEmail: approvers.CheckedByEmail,
-              checkedByName: prfRecord?.checkedBy || "CheckedBy",
-              approvedByEmail: approvers.ApprovedByEmail || "",
-              approvedByName: prfRecord?.approvedBy || "ApprovedBy",
-              receivedByEmail: approvers.ReceivedByEmail || "",
-              receivedByName: prfRecord?.receivedBy || "ReceivedBy",
-              senderEmail: process.env.SMTP_USER,
-              smtpPassword: process.env.SMTP_PASSWORD,
-            };
-            
-            console.log("[v0] Sending checkBy notification with payload:", notificationPayload);
-            
-            const response = await axios.post("http://localhost:5000/api/notifications/send-direct", notificationPayload);
-            
-            if (response.data.success) {
-              console.log("[v0] ✅ Notification sent to checkBy person after requestor notification");
-            } else {
-              console.error("[v0] API returned error:", response.data);
+          // Get approver emails from AssignedApprovals table
+          const approversResult = await pool
+            .request()
+            .input("userId", sql.Int, prfUserId)
+            .query(`
+              SELECT 
+                CheckedByEmail,
+                ApprovedByEmail,
+                ReceivedByEmail
+              FROM AssignedApprovals 
+              WHERE UserID = @userId 
+              AND ApplicType = 'PRF'
+            `);
+          
+          const approvers = approversResult.recordset[0] || {};
+          
+          console.log("[v0] Approver emails found from AssignedApprovals:", {
+            checkedByEmail: approvers.CheckedByEmail,
+            approvedByEmail: approvers.ApprovedByEmail,
+            receivedByEmail: approvers.ReceivedByEmail,
+            prfCheckedBy: prfRecord?.checkedBy,
+            prfApprovedBy: prfRecord?.approvedBy,
+            prfReceivedBy: prfRecord?.receivedBy,
+          });
+          
+          // Validate that we have at least the checkBy email
+          if (!approvers.CheckedByEmail) {
+            console.warn("[v0] No CheckedByEmail found in AssignedApprovals for UserID:", prfUserId);
+          } else {
+            // Send checkBy notification through the send-direct endpoint
+            try {
+              const notificationPayload = {
+                prfId,
+                prfNo: details?.prfNo || "",
+                preparedBy: requestor?.preparedBy || "System User",
+                company: "NutraTech Biopharma, Inc",
+                checkedByEmail: approvers.CheckedByEmail,
+                checkedByName: prfRecord?.checkedBy || "CheckedBy",
+                approvedByEmail: approvers.ApprovedByEmail || "",
+                approvedByName: prfRecord?.approvedBy || "ApprovedBy",
+                receivedByEmail: approvers.ReceivedByEmail || "",
+                receivedByName: prfRecord?.receivedBy || "ReceivedBy",
+                senderEmail: process.env.SMTP_USER,
+                smtpPassword: process.env.SMTP_PASSWORD,
+              };
+              
+              console.log("[v0] Sending checkBy notification with payload:", notificationPayload);
+              
+              const response = await axios.post("http://192.168.0.9:8099/api/notifications/send-direct", notificationPayload);
+              
+              if (response.data.success) {
+                console.log("[v0] ✅ Notification sent to checkBy person after requestor notification");
+                // ✅ MARK NOTIFICATION AS SENT
+                await markCheckByNotificationAsSent(prfId);
+              } else {
+                console.error("[v0] API returned error:", response.data);
+              }
+            } catch (axiosError) {
+              console.error("[v0] ⚠️ Axios error sending checkBy notification:", {
+                message: axiosError.message,
+                status: axiosError.response?.status,
+                data: axiosError.response?.data,
+              });
             }
-          } catch (axiosError) {
-            console.error("[v0] ⚠️ Axios error sending checkBy notification:", {
-              message: axiosError.message,
-              status: axiosError.response?.status,
-              data: axiosError.response?.data,
-            });
           }
         }
+      } catch (checkByError) {
+        console.error("[v0] ⚠️ Error sending checkBy notification:", checkByError.message);
+        console.error("[v0] Stack trace:", checkByError.stack);
+        // Don't fail the entire approval if checkBy notification fails
       }
-    } catch (checkByError) {
-      console.error("[v0] ⚠️ Error sending checkBy notification:", checkByError.message);
-      console.error("[v0] Stack trace:", checkByError.stack);
-      // Don't fail the entire approval if checkBy notification fails
+    } else if (notificationAlreadySent) {
+      console.log("[v0] ✅ CheckBy notification already sent for this PRF - skipping duplicate");
+    } else {
+      console.log("[v0] ✅ SPECIAL DEPARTMENT - SKIPPING checkBy NOTIFICATION, sending to approvedBy instead");
+      try {
+        const { sql, poolPurchaseRequest } = require("../connectionHelper/db");
+        const { sendEmail } = require("../lib/email-service");
+        
+        const pool = await poolPurchaseRequest;
+        
+        // Get the full PRF data for email template
+        const { getPrfWithDepartment } = require("../model/prfDataService");
+        const prfFullData = await getPrfWithDepartment(prfId);
+        
+        // Get the UserID and approver info
+        const prfUserResult = await pool
+          .request()
+          .input("prfId", sql.UniqueIdentifier, prfId)
+          .query(`
+            SELECT UserId, approvedBy, checkedBy, receivedBy, prfNo, prfDate, preparedBy
+            FROM PRFTABLE 
+            WHERE prfId = @prfId
+          `);
+        
+        const prfRecord = prfUserResult.recordset[0];
+        const prfUserId = prfRecord?.UserId;
+        
+        if (prfUserId) {
+          const approversResult = await pool
+            .request()
+            .input("userId", sql.Int, prfUserId)
+            .query(`
+              SELECT 
+                ApprovedByEmail,
+                ReceivedByEmail
+              FROM AssignedApprovals 
+              WHERE UserID = @userId 
+              AND ApplicType = 'PRF'
+            `);
+          
+          const approvers = approversResult.recordset[0] || {};
+          
+          if (approvers.ApprovedByEmail) {
+            console.log("[v0] Sending approveBy email to:", approvers.ApprovedByEmail);
+            
+            // Send email using the proper sendEmail function with approveBy template
+            const emailResult = await sendEmail(
+              approvers.ApprovedByEmail,
+              "approveBy",
+              {
+                prfNo: prfRecord?.prfNo || "",
+                prfId: prfId,
+                prfDate: prfRecord?.prfDate || "",
+                preparedBy: prfRecord?.preparedBy || "",
+                departmentCharge: prfFullData?.departmentCharge || prfFullData?.departmentType || "",
+                company: "NutraTech Biopharma, Inc",
+                CheckedByFullName: prfRecord?.checkedBy || "N/A",
+                ApprovedByFullName: prfRecord?.approvedBy || "N/A",
+                ReceivedByFullName: prfRecord?.receivedBy || "N/A",
+              },
+              process.env.SMTP_USER,
+              process.env.SMTP_PASSWORD
+            );
+            
+            if (emailResult?.success) {
+              console.log("[v0] ✅ ApprovedBy notification sent successfully to:", approvers.ApprovedByEmail);
+            } else {
+              console.error("[v0] ⚠️ Failed to send ApprovedBy notification:", emailResult?.error);
+            }
+          } else {
+            console.warn("[v0] ⚠️ No ApprovedByEmail found for special department");
+          }
+        }
+      } catch (approveByError) {
+        console.error("[v0] ⚠️ Error sending approveBy notification:", approveByError.message);
+        console.error("[v0] Stack trace:", approveByError.stack);
+      }
     }
 
     return res.status(200).json({

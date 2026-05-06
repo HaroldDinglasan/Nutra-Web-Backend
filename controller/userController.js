@@ -8,9 +8,6 @@ const registerUser = async (req, res) => {
     return res.status(400).json({ message: "All fields are required!" })
   }
 
-  if (departmentType !== "Approvers" && !outlookEmail) {
-    return res.status(400).json({ message: "Outlook email is required for this department!" })
-  }
 
   try {
     const result = await registerEmployee(departmentType, departmentId, fullName, username, password, outlookEmail)
