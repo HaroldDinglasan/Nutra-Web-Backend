@@ -199,7 +199,8 @@ const loginUser = async (username, password) => {
           U.fullName, 
           U.departmentType,
           U.departmentId,
-          U.outlookEmail
+          U.outlookEmail,
+          U.role
         FROM Login L
         INNER JOIN Users_Info U ON L.userID = U.userID
         WHERE L.username = @username AND L.password = @password;
