@@ -204,6 +204,24 @@ const getReceiverDetails = async (prfId) => {
   }
 }
 
+// Check if department should skip checkedBy approval (go directly to approvedBy)
+const shouldSkipCheckedByApproval = (departmentType) => {
+  const skipDepartments = [
+    "OTP",
+    "OTC", 
+    "Office of the President",
+    "Office of the COO",
+    "OP",
+    "COO"
+  ];
+  
+  if (!departmentType) return false;
+  
+  return skipDepartments.some(dept => 
+    departmentType.toUpperCase().includes(dept.toUpperCase())
+  );
+}
+
 // MAIN CONTROLLER: APPROVE PRF 
 // Handles check, approve, and receive actions 
 const approvePrfController = async (req, res) => {
@@ -242,6 +260,10 @@ const approvePrfController = async (req, res) => {
         return res.status(200).json({ success: true })
       }
 
+      // 🔴 CHECK IF DEPARTMENT SHOULD SKIP CHECKEDBY APPROVAL
+      const skipCheckedByApproval = shouldSkipCheckedByApproval(prfData?.departmentType)
+      console.log(` Department: ${prfData?.departmentType}, Skip CheckedBy: ${skipCheckedByApproval}`)
+
       // 🔵 IF FIRST CHECKER (has second checker configured)
       if (result.hasSecondChecker && !result.isSecondChecker) {
 
@@ -256,7 +278,7 @@ const approvePrfController = async (req, res) => {
             prfId: prfData.prfId,
             prfDate: prfData.prfDate,
             preparedBy: prfData.preparedBy,
-            departmentCharge: prfData.departmentCharge || prfData.departmentType,
+            projectCode: prfData.projectCode || "Not specified",
             company: "NutraTech Biopharma, Inc",
             CheckedByFullName: prfData.secondCheckedBy, // ✅ FIXED
             ApprovedByFullName: prfData.approvedBy,
@@ -306,7 +328,7 @@ const approvePrfController = async (req, res) => {
             prfId: prfData.prfId,
             prfDate: prfData.prfDate,
             preparedBy: prfData.preparedBy,
-            departmentCharge: prfData.departmentCharge || prfData.departmentType,
+            projectCode: prfData.projectCode || "Not specified",
             company: prfData.company || "NutraTech Biopharma, Inc",
             CheckedByFullName: prfData.checkedBy || "N/A",
             ApprovedByFullName: prfData.approvedBy || "N/A",
@@ -324,6 +346,36 @@ const approvePrfController = async (req, res) => {
       // 🔵 NORMAL DEPARTMENT (no second checker)
       if (!result.hasSecondChecker) {
 
+        // 🚀 FOR OTP, OTC, OFFICE OF PRESIDENT, OFFICE OF COO
+        if (skipCheckedByApproval) {
+          console.log(" ✅ SPECIAL DEPARTMENT DETECTED - SKIPPING CHECKEDBY APPROVAL STEP")
+          console.log(" Sending directly to approvedBy and receiver...")
+
+          // 1️⃣ Notify APPROVED BY directly (SKIP the checkedBy notification to requestor)
+          await sendEmail(
+            approvalFlow.ApprovedByEmail,
+            "approveBy",
+            {
+              prfNo: prfData.prfNo,
+              prfId: prfData.prfId,
+              prfDate: prfData.prfDate,
+              preparedBy: prfData.preparedBy,
+              projectCode: prfData.projectCode || "Not specified",
+              company: prfData.company || "NutraTech Biopharma, Inc",
+              CheckedByFullName: prfData.checkedBy || "N/A",
+              ApprovedByFullName: prfData.approvedBy || "N/A",
+              ReceivedByFullName: prfData.receivedBy || "N/A",
+            },
+            senderEmail,
+            smtpPassword
+          )
+
+          console.log(" ✅ Successfully sent approveBy notification (SKIPPED checkedBy)")
+
+          return res.status(200).json({ success: true })
+        }
+
+        // 🔵 NORMAL DEPARTMENT (no skip)
         console.log(" Normal department → notifying requestor and sending to approver")
 
         // 1️⃣ Notify REQUESTOR (prfChecked)
@@ -358,7 +410,7 @@ const approvePrfController = async (req, res) => {
             prfId: prfData.prfId,
             prfDate: prfData.prfDate,
             preparedBy: prfData.preparedBy,
-            departmentCharge: prfData.departmentCharge || prfData.departmentType,
+            projectCode: prfData.projectCode || "Not specified",
             company: prfData.company || "NutraTech Biopharma, Inc",
             CheckedByFullName: prfData.checkedBy || "N/A",
             ApprovedByFullName: prfData.approvedBy || "N/A",
@@ -431,7 +483,7 @@ const approvePrfController = async (req, res) => {
             prfId: prfData.prfId,
             prfDate: prfData.prfDate,
             preparedBy: prfData.preparedBy,
-            departmentCharge: prfData.departmentCharge || prfData.departmentType, // Pass departmentCharge to email
+            projectCode: prfData.projectCode || "Not specified", // Pass departmentCharge to email
             company: prfData.company || "NutraTech Biopharma, Inc",
             CheckedByFullName: checkedByName || prfData.checkedBy || "N/A",
             ApprovedByFullName: approvedByName || userFullName || "N/A",
@@ -641,4 +693,12 @@ const rejectPrfController = async (req, res) => {
   }
 }
 
-module.exports = { approvePrfController, rejectPrfController }
+module.exports = { 
+  approvePrfController, 
+  rejectPrfController,
+  shouldSkipCheckedByApproval,
+  getApprovalFlowDetails,
+  getRequestorEmail,
+  getApproverDetails,
+  getReceiverDetails,
+}

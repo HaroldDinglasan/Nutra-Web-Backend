@@ -1,6 +1,35 @@
 const express = require("express")
 const cors = require("cors")
 const dotenv = require("dotenv")
+
+dotenv.config()
+
+const app = express()
+
+// ✅ ADD THIS (CRITICAL FIX)
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+
+// CORS
+app.use(cors({
+  origin: [
+    "http://192.168.0.9",
+    "http://prf-portal.nutratech.com.ph" // ✅ ADD THIS ALSO
+
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+}))
+
+app.options("*", cors())
+
+app.get("/", (req, res) => {
+  res.send("Backend is running successfully 🚀")
+})
+
+
+// Routes
 const stockRoutes = require("./routes/stockRoutes")
 const employeeRoutes = require("./routes/employeeRoutes")
 const userRoutes = require("./routes/userRoutes")
@@ -16,14 +45,10 @@ const markAsReceivedRoutes = require("./routes/markAsReceivedRoutes")
 const approveOrRejectPrfRoutes = require("./routes/approveOrRejectPrfRoutes")
 const cgsCheckerRoutes = require("./routes/cgsCheckerRoutes")
 const projectCodeRoutes = require("./routes/projectCodeRoutes")
-
-dotenv.config()
-const app = express()
-const PORT = process.env.PORT || 5000
-
-// Middleware
-app.use(cors())
-app.use(express.json())
+const prfCooRoutes = require("./routes/prfCooRoutes")
+const prfCheckedByRoutes = require("./routes/prfCheckedByRoutes")
+// IMPORTANT for IIS
+const port = process.env.PORT || 8090;
 
 // API Routes
 app.use("/api", stockRoutes)
@@ -41,7 +66,9 @@ app.use("/api", markAsReceivedRoutes)
 app.use("/api", approveOrRejectPrfRoutes)
 app.use("/api", cgsCheckerRoutes)
 app.use("/api", projectCodeRoutes)
+app.use("/api", prfCooRoutes)
+app.use("/api", prfCheckedByRoutes)
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`)
+app.listen(port, () => {
+  console.log(`🚀 Server running on port ${port}`)
 })

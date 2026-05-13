@@ -4,8 +4,19 @@ const { sendIM07CorplanNotification } = require("../lib/email-service")
 
 //  Fetch the 3 fixed stock checkers from Users_Info table
 // Names: Ryeanna Lois Campos, Regienel S. Regalado, Jazzlyn Villaruel
-const getStockCheckersFromDB = async () => {
+const getStockCheckersFromDB = async (stockCode) => {
   try {
+
+    // ✅ IM-02 MMD STOCK CODE CHECKER
+    if (stockCode && stockCode.startsWith("IM-02")) {
+      console.log(" IM-02 detected → routing to MMD");
+      return [
+        {
+          name: "Fernan C. Mananguit",
+          email: "Fernan.Mananguit@nutratech.com.ph"
+        }
+      ];
+    }
     
     // Connect to PurchaseRequest database
     const pool = await poolPurchaseRequest;
@@ -69,7 +80,7 @@ const getPrfAndStockDetails = async (prfId, stockCode) => {
       SELECT 
         p.prfNo,
         p.preparedBy,
-        p.departmentCharge,
+        p.projectCode,
         d.stockCode,
         d.stockName
       FROM PRFTABLE p
@@ -80,6 +91,21 @@ const getPrfAndStockDetails = async (prfId, stockCode) => {
     `);
 
   return result.recordset[0];
+};
+
+// ✅ GET ALL STOCK ITEMS FOR A PRF (NEW)
+const getAllStockItemsByPrfId = async (prfId) => {
+  const pool = await poolPurchaseRequest;
+
+  const result = await pool.request()
+    .input("prfId", sql.UniqueIdentifier, prfId)
+    .query(`
+      SELECT stockCode, stockName
+      FROM PRFTABLE_DETAILS
+      WHERE prfId = @prfId
+    `);
+
+  return result.recordset;
 };
 
 
@@ -184,7 +210,7 @@ const approveStock = async ({ prfId, stockCode, stockName, notedBy, verifiedBy,}
           preparedBy: prfDetails.preparedBy,
           stockCode: prfDetails.stockCode,
           stockName: prfDetails.stockName,
-          departmentCharge: prfDetails.departmentCharge,
+          projectCode: prfDetails.projectCode,
           company: process.env.COMPANY_NAME || "NutraTech"
         });
 
@@ -246,5 +272,6 @@ module.exports = {
   getLatestStockCheckByPrfId, 
   approveStock, 
   rejectStock, 
-  getPrfAndStockDetails 
+  getPrfAndStockDetails,
+  getAllStockItemsByPrfId
 };
