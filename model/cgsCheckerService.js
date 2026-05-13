@@ -82,7 +82,9 @@ const getPrfAndStockDetails = async (prfId, stockCode) => {
         p.preparedBy,
         p.projectCode,
         d.stockCode,
-        d.stockName
+        d.stockName,
+        d.QTY,
+        d.UOM
       FROM PRFTABLE p
       LEFT JOIN PRFTABLE_DETAILS d
         ON p.prfId = d.prfId
@@ -100,7 +102,11 @@ const getAllStockItemsByPrfId = async (prfId) => {
   const result = await pool.request()
     .input("prfId", sql.UniqueIdentifier, prfId)
     .query(`
-      SELECT stockCode, stockName
+      SELECT 
+        stockCode, 
+        stockName,
+        QTY AS quantity,
+        UOM AS uom
       FROM PRFTABLE_DETAILS
       WHERE prfId = @prfId
     `);
