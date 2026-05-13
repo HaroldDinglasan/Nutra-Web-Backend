@@ -6,7 +6,7 @@ const { getEmployeeByOid } = require("../model/employeeService")
 const { sendStockAvailabilityNotification } = require("../lib/email-service")
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
 const { getStockCheckersFromDB } = require("../model/cgsCheckerService")
-
+  
 const router = express.Router()
 
 // Function para kunin yung mga fullname ng mga Approvers
@@ -277,7 +277,7 @@ router.post("/notifications/stock-availability", async (req, res) => {
     const stockResult = await pool.request()
       .input("prfId", sql.UniqueIdentifier, prfId)
       .query(`
-        SELECT stockCode, stockName
+        SELECT stockCode, stockName, QTY, UOM
         FROM PRFTABLE_DETAILS
         WHERE prfId = @prfId
       `);
@@ -289,18 +289,24 @@ router.post("/notifications/stock-availability", async (req, res) => {
       });
     }
 
-    // ✅ STEP 2: Remove duplicates
+    // ✅ STEP 2: Remove duplicates (keep first occurrence with quantity)
     const uniqueMap = new Map();
 
     stockResult.recordset.forEach(item => {
       if (!uniqueMap.has(item.stockCode)) {
-        uniqueMap.set(item.stockCode, item.stockName);
+        uniqueMap.set(item.stockCode, {
+          name: item.stockName,
+          quantity: item.QTY,
+          uom: item.UOM
+        });
       }
     });
 
-    const uniqueStocks = Array.from(uniqueMap, ([code, name]) => ({
+    const uniqueStocks = Array.from(uniqueMap, ([code, data]) => ({
       code,
-      name
+      name: data.name,
+      quantity: data.quantity,
+      uom: data.uom
     }));
 
     console.log("✅ Unique Stocks:", uniqueStocks);
@@ -348,10 +354,12 @@ router.post("/notifications/stock-availability", async (req, res) => {
 
     console.log("📧 Final Recipients:", finalRecipients);
 
-    // ✅ PREPARE STOCK ITEMS ARRAY
+    // ✅ PREPARE STOCK ITEMS ARRAY (with quantity and UOM)
     const stockItems = uniqueStocks.map(stock => ({
       stockCode: stock.code,
-      stockName: stock.name
+      stockName: stock.name,
+      quantity: stock.quantity,
+      uom: stock.uom
     }));
 
     // ✅ SEND ONLY ONE EMAIL

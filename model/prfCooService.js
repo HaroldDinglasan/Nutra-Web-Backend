@@ -1,5 +1,5 @@
 const { poolPurchaseRequest } = require("../connectionHelper/db");
-  
+    
 const getPendingPrfsForCOO = async () => {
   try {
     const pool = await poolPurchaseRequest;
@@ -10,6 +10,7 @@ const getPendingPrfsForCOO = async () => {
         p.prfNo,
         p.prfDate,
         p.preparedBy,
+        p.checkedBy_Status,
         p.approvedBy,
         p.approvedBy_Status,
         p.isReject,
@@ -23,6 +24,7 @@ const getPendingPrfsForCOO = async () => {
         ON p.prfId = d.PrfId
       WHERE 
         p.approvedBy = 'Andrea Kathleen D. Castillo'
+        AND p.checkedBy_Status = 'APPROVED'
         AND (p.approvedBy_Status IS NULL OR p.approvedBy_Status = 'PENDING')
         AND p.isReject = 0
         AND p.isCancel = 0
