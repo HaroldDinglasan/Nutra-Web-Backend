@@ -3,7 +3,7 @@ const express = require("express");
 const axios = require("axios");
 
 const { getStockCheckersFromDB, getRequestorByPrfId, getPrfAndStockDetails, isAlreadyChecked, getLatestStockCheckByPrfId, approveStock, rejectStock,  } = require("../model/cgsCheckerService");
-const { sendStockAvailableToRequestor, sendStockNotAvailableToRequestor} = require("../lib/email-service")
+const { sendStockAvailableToRequestor, sendStockNotAvailableToRequestor,  sendWrongStockCodeNotification, sendEmail } = require("../lib/email-service")
 const { getAllStockItemsByPrfId } = require("../model/cgsCheckerService")
 
 const router = express.Router();
@@ -305,7 +305,7 @@ const markCheckByNotificationAsSent = async (prfId) => {
 // APPROVE FROM STOCK APPROVE AVAILABILITY.JSX
 router.post("/cgs-stock/approve", async (req, res) => {
   try {
-    const { prfId, stockCode, stockName, notedBy, verifiedBy } = req.body;
+    const { prfId, stockCode, stockName, notedBy, verifiedBy, reason } = req.body;
 
     // Validate request
     if (!prfId || !stockCode) {
@@ -322,6 +322,9 @@ router.post("/cgs-stock/approve", async (req, res) => {
       });
     }
 
+    const finalReason = reason;
+
+
     // Save Approval
     await approveStock({
       prfId,
@@ -329,6 +332,7 @@ router.post("/cgs-stock/approve", async (req, res) => {
       stockName,
       notedBy,
       verifiedBy,
+      rejectionReason: finalReason,
     });
 
     const stockLog = await getLatestStockCheckByPrfId(prfId, stockCode);
@@ -345,6 +349,7 @@ router.post("/cgs-stock/approve", async (req, res) => {
         stockCode,
         stockName: details?.stockName || stockName || "",
         prfNo: details?.prfNo || "",
+        reason: finalReason,
         company: "NutraTech Biopharma, Inc",
         verifiedBy: verifiedByFromDb,
       });
@@ -364,16 +369,51 @@ router.post("/cgs-stock/approve", async (req, res) => {
     // ✅ CHECK IF NOTIFICATION HAS ALREADY BEEN SENT FOR THIS PRF
     const notificationAlreadySent = await hasCheckByNotificationBeenSent(prfId);
     console.log("[v0] CheckBy notification already sent for this PRF?", notificationAlreadySent);
+
+    // MAY 27, 2026 
+    // ADDED AND MODIFIED
+    const { sql, poolPurchaseRequest } = require("../connectionHelper/db");
+
+    const pool = await poolPurchaseRequest;
+
+    const prfUserResult = await pool
+      .request()
+      .input("prfId", sql.UniqueIdentifier, prfId)
+      .query(`
+        SELECT UserId, checkedBy, approvedBy, receivedBy, prfDate
+        FROM PRFTABLE 
+        WHERE prfId = @prfId
+      `);
+
+    const prfRecord = prfUserResult.recordset[0];
+
+    const prfUserId = prfRecord?.UserId;
+
+    let approvers = {};
+
+    if (prfUserId) {
+      const approversResult = await pool
+        .request()
+        .input("userId", sql.Int, prfUserId)
+        .query(`
+          SELECT 
+            CheckedByEmail,
+            ApprovedByEmail,
+            ReceivedByEmail
+          FROM AssignedApprovals 
+          WHERE UserID = @userId 
+          AND ApplicType = 'PRF'
+        `);
+
+      approvers = approversResult.recordset[0] || {};
+    }
     
     // AFTER requestor notification is sent, NOW send notification to checkBy person
     // UNLESS the department should skip this step OR notification was already sent
     if (!skipCheckedByApproval && !notificationAlreadySent) {
       console.log("[v0] Now sending notification to checkBy person...");
       try {
-        const { sql, poolPurchaseRequest } = require("../connectionHelper/db");
-        
-        const pool = await poolPurchaseRequest;
-        
+                
         // First, get the UserID from PRFTABLE to find the AssignedApprovals record
         const prfUserResult = await pool
           .request()
@@ -404,9 +444,7 @@ router.post("/cgs-stock/approve", async (req, res) => {
               WHERE UserID = @userId 
               AND ApplicType = 'PRF'
             `);
-          
-          const approvers = approversResult.recordset[0] || {};
-          
+                    
           console.log("[v0] Approver emails found from AssignedApprovals:", {
             checkedByEmail: approvers.CheckedByEmail,
             approvedByEmail: approvers.ApprovedByEmail,
@@ -466,78 +504,30 @@ router.post("/cgs-stock/approve", async (req, res) => {
       console.log("[v0] ✅ CheckBy notification already sent for this PRF - skipping duplicate");
     } else {
       console.log("[v0] ✅ SPECIAL DEPARTMENT - SKIPPING checkBy NOTIFICATION, sending to approvedBy instead");
-      try {
-        const { sql, poolPurchaseRequest } = require("../connectionHelper/db");
-        const { sendEmail } = require("../lib/email-service");
-        
-        const pool = await poolPurchaseRequest;
-        
-        // Get the full PRF data for email template
-        const { getPrfWithDepartment } = require("../model/prfDataService");
-        const prfFullData = await getPrfWithDepartment(prfId);
-        
-        // Get the UserID and approver info
-        const prfUserResult = await pool
-          .request()
-          .input("prfId", sql.UniqueIdentifier, prfId)
-          .query(`
-            SELECT UserId, approvedBy, checkedBy, receivedBy, prfNo, prfDate, preparedBy
-            FROM PRFTABLE 
-            WHERE prfId = @prfId
-          `);
-        
-        const prfRecord = prfUserResult.recordset[0];
-        const prfUserId = prfRecord?.UserId;
-        
-        if (prfUserId) {
-          const approversResult = await pool
-            .request()
-            .input("userId", sql.Int, prfUserId)
-            .query(`
-              SELECT 
-                ApprovedByEmail,
-                ReceivedByEmail
-              FROM AssignedApprovals 
-              WHERE UserID = @userId 
-              AND ApplicType = 'PRF'
-            `);
-          
-          const approvers = approversResult.recordset[0] || {};
-          
-          if (approvers.ApprovedByEmail) {
-            console.log("[v0] Sending approveBy email to:", approvers.ApprovedByEmail);
-            
-            // Send email using the proper sendEmail function with approveBy template
-            const emailResult = await sendEmail(
-              approvers.ApprovedByEmail,
-              "approveBy",
-              {
-                prfNo: prfRecord?.prfNo || "",
-                prfId: prfId,
-                prfDate: prfRecord?.prfDate || "",
-                preparedBy: prfRecord?.preparedBy || "",
-                departmentCharge: prfFullData?.departmentCharge || prfFullData?.departmentType || "",
-                company: "NutraTech Biopharma, Inc",
-                CheckedByFullName: prfRecord?.checkedBy || "N/A",
-                ApprovedByFullName: prfRecord?.approvedBy || "N/A",
-                ReceivedByFullName: prfRecord?.receivedBy || "N/A",
-              },
-              process.env.SMTP_USER,
-              process.env.SMTP_PASSWORD
-            );
-            
-            if (emailResult?.success) {
-              console.log("[v0] ✅ ApprovedBy notification sent successfully to:", approvers.ApprovedByEmail);
-            } else {
-              console.error("[v0] ⚠️ Failed to send ApprovedBy notification:", emailResult?.error);
-            }
-          } else {
-            console.warn("[v0] ⚠️ No ApprovedByEmail found for special department");
-          }
-        }
-      } catch (approveByError) {
-        console.error("[v0] ⚠️ Error sending approveBy notification:", approveByError.message);
-        console.error("[v0] Stack trace:", approveByError.stack);
+
+      // SEND approveBy TO APPROVER ONLY
+      if (approvers.ApprovedByEmail) {
+
+        await sendEmail(
+          approvers.ApprovedByEmail,
+          "approveBy",
+          {
+            prfNo: details?.prfNo || "",
+            prfId,
+            prfDate: prfRecord?.prfDate || "",
+            preparedBy: requestor.preparedBy || "N/A",
+            projectCode: details?.projectCode || "Not specified",
+            company: "NutraTech Biopharma, Inc",
+
+            CheckedByFullName: verifiedByFromDb || "IM Stock Checker",
+            ApprovedByFullName: prfRecord?.approvedBy || "N/A",
+            ReceivedByFullName: prfRecord?.receivedBy || "N/A",
+          },
+          process.env.SMTP_USER,
+          process.env.SMTP_PASSWORD
+        );
+
+        console.log("[v0] ✅ approveBy notification sent");
       }
     }
 
@@ -557,7 +547,15 @@ router.post("/cgs-stock/approve", async (req, res) => {
 // REJECT FROM STOCK APPROVE AVAILABILITY.JSX
 router.post("/cgs-stock/reject", async (req, res) => {
   try {
-    const { prfId, stockCode, stockName, notedBy, verifiedBy, reason } = req.body;
+    const { 
+      prfId, 
+      stockCode, 
+      stockName, 
+      notedBy, 
+      verifiedBy, 
+      reason,
+      rejectType
+    } = req.body;
 
     if (!prfId || !stockCode) {
       return res.status(400).json({
@@ -590,19 +588,40 @@ router.post("/cgs-stock/reject", async (req, res) => {
     const details = await getPrfAndStockDetails(prfId, stockCode);
 
     if (requestor?.outlookEmail) {
-      await sendStockNotAvailableToRequestor({
-        toEmail: requestor.outlookEmail,
-        preparedBy: requestor.preparedBy,
-        stockCode,
-        stockName: details?.stockName || "",
-        prfNo: details?.prfNo || "",
-        company: "NutraTech Biopharma, Inc",
-        reason: finalReason,
-        verifiedBy: verifiedByFromDb,
 
-      });
-    } else {
-      console.warn("[v0] No requestor email found for PRF:", prfId);
+      // WRONG STOCK CODE
+      if (rejectType === "wrong-stock-code") {
+
+        await sendWrongStockCodeNotification({
+          toEmail: requestor.outlookEmail,
+          stockCode,
+          stockName: details?.stockName || "",
+          prfNo: details?.prfNo || "",
+          verifiedBy: verifiedByFromDb,
+          reason: finalReason,
+        });
+
+        console.log("[v0] Wrong stock code email sent");
+      }
+
+      // NO STOCK AVAILABLE
+      else if (rejectType === "stock-available-ris") {
+
+        await sendStockNotAvailableToRequestor({
+          toEmail: requestor.outlookEmail,
+          preparedBy: requestor.preparedBy,
+          stockCode,
+          stockName: details?.stockName || "",
+          prfNo: details?.prfNo || "",
+          company: "NutraTech Biopharma, Inc",
+          reason: finalReason,
+          verifiedBy: verifiedByFromDb,
+        });
+
+        console.log("[v0] No stock available email sent");
+
+      }
+
     }
 
     return res.status(200).json({

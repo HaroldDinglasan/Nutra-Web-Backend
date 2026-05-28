@@ -7,7 +7,20 @@ const { sendIM07CorplanNotification } = require("../lib/email-service")
 const getStockCheckersFromDB = async (stockCode) => {
   try {
 
+    // ✅ IM-08 QC DEPARTMENT STOCK CODE CHECKER\
+    // QC DEPARTMENT
+    if (stockCode && stockCode.startsWith("IM-08")) {
+      console.log(" IM-08 detected -> routing to QC");
+      return [
+        {
+          name: "Jazmine Shayne Gabat",
+          email: "Harold.Dinglasan@nutratech.com.ph"
+        }
+      ];
+    }
+
     // ✅ IM-02 MMD STOCK CODE CHECKER
+    // MMD DEPARTMENT
     if (stockCode && stockCode.startsWith("IM-02")) {
       console.log(" IM-02 detected → routing to MMD");
       return [
@@ -171,7 +184,7 @@ const getLatestStockCheckByPrfId = async (prfId, stockCode) => {
 };
 
 // APPROVE STOCK
-const approveStock = async ({ prfId, stockCode, stockName, notedBy, verifiedBy,}) => {
+const approveStock = async ({ prfId, stockCode, stockName, notedBy, verifiedBy, rejectionReason}) => {
 
   const pool = await poolPurchaseRequest;
 
@@ -181,6 +194,8 @@ const approveStock = async ({ prfId, stockCode, stockName, notedBy, verifiedBy,}
     .input("stockName", sql.NVarChar(255), stockName)
     .input("notedBy", sql.NVarChar(100), notedBy)
     .input("verifiedBy", sql.NVarChar(100), verifiedBy)
+    .input("rejectionReason", sql.NVarChar(255), rejectionReason)
+
     .query(`
       INSERT INTO CGS_StockCheckLog (
         prfId,
@@ -195,7 +210,7 @@ const approveStock = async ({ prfId, stockCode, stockName, notedBy, verifiedBy,}
         @prfId,
         @stockCode,
         @stockName,
-        NULL,
+        @rejectionReason,
         @notedBy,
         @verifiedBy,
         1
