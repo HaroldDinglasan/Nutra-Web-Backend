@@ -330,9 +330,11 @@ router.post("/notifications/stock-availability", async (req, res) => {
 
     // collect recipients from all stock codes
     for (const stock of uniqueStocks) {
+      
       let recipients = await getStockCheckersFromDB(stock.code);
 
       // IM-02 override
+      // MMD DEPARTMENT
       if (stock.code.startsWith("IM-02")) {
         recipients = [
           {
