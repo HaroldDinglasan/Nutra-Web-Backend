@@ -485,9 +485,20 @@ const approvePrfController = async (req, res) => {
             preparedBy: prfData.preparedBy,
             projectCode: prfData.projectCode || "Not specified", // Pass departmentCharge to email
             company: prfData.company || "NutraTech Biopharma, Inc",
-            CheckedByFullName: checkedByName || prfData.checkedBy || "N/A",
-            ApprovedByFullName: approvedByName || userFullName || "N/A",
-            ReceivedByFullName: receivedByName || receiverDetails.receivedByName || "N/A",
+
+            CheckedByFullName: 
+              prfData.checkedBy || 
+              "N/A",
+
+            ApprovedByFullName: 
+              prfData.approvedByName || 
+              userFullName || 
+              "N/A", 
+
+            ReceivedByFullName: 
+              prfData.receivedByName || 
+              receiverDetails.receivedByName || 
+              "N/A",
           },
           senderEmail,
           smtpPassword,
