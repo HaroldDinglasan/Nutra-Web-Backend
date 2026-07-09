@@ -277,7 +277,7 @@ router.post("/notifications/stock-availability", async (req, res) => {
     const stockResult = await pool.request()
       .input("prfId", sql.UniqueIdentifier, prfId)
       .query(`
-        SELECT stockCode, stockName, QTY, UOM
+        SELECT stockCode, stockName, QTY, UOM, Purpose
         FROM PRFTABLE_DETAILS
         WHERE prfId = @prfId
       `);
@@ -297,7 +297,8 @@ router.post("/notifications/stock-availability", async (req, res) => {
         uniqueMap.set(item.stockCode, {
           name: item.stockName,
           quantity: item.QTY,
-          uom: item.UOM
+          uom: item.UOM,
+          purpose: item.Purpose
         });
       }
     });
@@ -306,7 +307,8 @@ router.post("/notifications/stock-availability", async (req, res) => {
       code,
       name: data.name,
       quantity: data.quantity,
-      uom: data.uom
+      uom: data.uom,
+      purpose: data.purpose
     }));
 
     console.log("✅ Unique Stocks:", uniqueStocks);
@@ -361,7 +363,8 @@ router.post("/notifications/stock-availability", async (req, res) => {
       stockCode: stock.code,
       stockName: stock.name,
       quantity: stock.quantity,
-      uom: stock.uom
+      uom: stock.uom,
+      purpose: stock.purpose
     }));
 
     // ✅ SEND ONLY ONE EMAIL
