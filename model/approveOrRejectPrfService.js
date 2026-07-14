@@ -41,15 +41,25 @@ const approvePrfByHeads = async (prfId, actionType, userFullName) => {
       const checkStatus = await pool.request()
         .input("prfId", sql.UniqueIdentifier, prfId)
         .query(`
-          SELECT checkedByDateTime
+          SELECT checkedByDateTime, secondCheckedByDateTime
           FROM PRFTABLE
           WHERE prfId = @prfId
         `)
 
-      // If first checker already checked -> this is second checker
-      if (checkStatus.recordset[0].checkedByDateTime) {
+      const prfStatus = checkStatus.recordset[0]
+      
+      // If first checker already checked AND second checker hasn't checked yet -> this IS the second checker
+      if (prfStatus.checkedByDateTime && !prfStatus.secondCheckedByDateTime) {
         isSecondChecker = true
       }
+      
+      console.log("[v0] Check Status Analysis:", {
+        prfId,
+        hasSecondChecker: !!setup.SecondCheckedById,
+        checkedByDateTime: prfStatus.checkedByDateTime,
+        secondCheckedByDateTime: prfStatus.secondCheckedByDateTime,
+        isSecondChecker
+      })
     }
 
     
@@ -103,6 +113,16 @@ const approvePrfByHeads = async (prfId, actionType, userFullName) => {
       .input("status", sql.VarChar, "APPROVED")
       .input("userFullName", sql.VarChar, userFullName || "System User")
       .query(query)
+
+    // Step 5: Log detailed info before returning
+    console.log("[v0] Approval Result:", {
+      prfId,
+      actionType: normalizedActionType,
+      isSecondChecker,
+      hasSecondChecker: !!setup.SecondCheckedById,
+      secondCheckerEmail: setup.WloSecondCheckedByEmail,
+      secondCheckedById: setup.SecondCheckedById,
+    })
 
     // Step 5:  Return result to controller
     return {

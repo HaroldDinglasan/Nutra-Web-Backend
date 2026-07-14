@@ -132,11 +132,12 @@ const updateApproval = async (id, approvalData) => {
         SET 
           CheckedById = @CheckedById,
           CheckedByEmail = @CheckedByEmail,
+          WloSecondCheckedByEmail = @WloSecondCheckedByEmail,
+          SecondCheckedById = @SecondCheckedById,
           ApprovedById = @ApprovedById,
           ApprovedByEmail = @ApprovedByEmail,
           ReceivedById = @ReceivedById,
-          ReceivedByEmail = @ReceivedByEmail,
-          SecondCheckedById = @SecondCheckedById
+          ReceivedByEmail = @ReceivedByEmail
         WHERE ApproverAssignID = @ApproverAssignID
       `)
 
@@ -148,8 +149,8 @@ const updateApproval = async (id, approvalData) => {
 }
 
 // This function gets OID from SecuritySystemUser or HeadUsers
-// Then updates AssignedApprovals with correct OIDs
-const populateAssignedApprovals = async (userId, checkedByName, approvedByName, receivedByName, secondCheckedByName) => {
+// Then updates AssignedApprovals with correct OIDs and emails
+const populateAssignedApprovals = async (userId, checkedByName, approvedByName, receivedByName, secondCheckedByName, secondCheckedByEmail) => {
   try {
     const avliPool = await poolAVLI
     const purchasePool = await poolPurchaseRequest
@@ -197,13 +198,15 @@ const populateAssignedApprovals = async (userId, checkedByName, approvedByName, 
         .input("approvedById", sql.UniqueIdentifier, approvedById)
         .input("receivedById", sql.UniqueIdentifier, receivedById)
         .input("secondCheckedById", sql.UniqueIdentifier, secondCheckedById)
+        .input("secondCheckedByEmail", sql.VarChar(100), secondCheckedByEmail || null)
         // Inuupdate ang checked, approved, received by id na maging OID ng approvers sa table ng SecuritySystemUser Database ng TEST_AVLI
         .query(`
           UPDATE AssignedApprovals
           SET CheckedById = @checkedById,
               ApprovedById = @approvedById,
               ReceivedById = @receivedById,
-              SecondCheckedById = @secondCheckedById
+              SecondCheckedById = @secondCheckedById,
+              WloSecondCheckedByEmail = @secondCheckedByEmail
           WHERE UserID = @userId AND ApplicType = 'PRF'
         `)
     } else {
@@ -215,6 +218,7 @@ const populateAssignedApprovals = async (userId, checkedByName, approvedByName, 
         .input("approvedById", sql.UniqueIdentifier, approvedById)
         .input("receivedById", sql.UniqueIdentifier, receivedById)
         .input("secondCheckedById", sql.UniqueIdentifier, secondCheckedById)
+        .input("secondCheckedByEmail", sql.VarChar(100), secondCheckedByEmail || null)
         .query(`
           INSERT INTO AssignedApprovals (
             UserID, 
@@ -222,7 +226,8 @@ const populateAssignedApprovals = async (userId, checkedByName, approvedByName, 
             CheckedById, 
             ApprovedById, 
             ReceivedById,
-            SecondCheckedById
+            SecondCheckedById,
+            WloSecondCheckedByEmail
           )
           VALUES (
             @userId, 
@@ -230,7 +235,8 @@ const populateAssignedApprovals = async (userId, checkedByName, approvedByName, 
             @checkedById, 
             @approvedById, 
             @receivedById,
-            @secondCheckedById
+            @secondCheckedById,
+            @secondCheckedByEmail
           )
         `)
     }
@@ -249,7 +255,7 @@ const getAssignedEmails = async (userId) => {
   .request()
   .input("UserID", sql.Int, userId)
   .query(`
-    SELECT CheckedByEmail, ApprovedByEmail, ReceivedByEmail FROM AssignedApprovals 
+    SELECT CheckedByEmail, WloSecondCheckedByEmail, ApprovedByEmail, ReceivedByEmail FROM AssignedApprovals 
     WHERE UserID = @UserID AND ApplicType = 'PRF'
     `);
 
