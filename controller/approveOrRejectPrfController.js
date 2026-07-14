@@ -268,9 +268,22 @@ const approvePrfController = async (req, res) => {
       if (result.hasSecondChecker && !result.isSecondChecker) {
 
         console.log(" First check completed → sending to second checker")
+        console.log("[v0] Second Checker Email Details:", {
+          secondCheckerEmail: result.secondCheckerEmail,
+          hasEmail: !!result.secondCheckerEmail,
+        })
+
+        // ✅ VALIDATION: Ensure second checker email exists
+        if (!result.secondCheckerEmail) {
+          console.warn("[v0] ⚠️ WARNING: Second checker email is not set! Check AssignedApprovals.WloSecondCheckedByEmail")
+          return res.status(200).json({ 
+            success: true,
+            warning: "Second checker email is not configured. Please check AssignedApprovals table for WloSecondCheckedByEmail."
+          })
+        }
 
         // Para mag display sa outlook notification messages
-        await sendEmail(
+        const emailResult = await sendEmail(
           result.secondCheckerEmail,
           "checkBy",
           {
@@ -288,7 +301,9 @@ const approvePrfController = async (req, res) => {
           smtpPassword
         )
 
-        return res.status(200).json({ success: true })
+        console.log("[v0] Second checker email result:", emailResult)
+
+        return res.status(200).json({ success: true, emailResult })
       }
 
       // 🔵 IF SECOND CHECKER

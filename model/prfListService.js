@@ -25,6 +25,9 @@ const getPrfList = async () => {
           d.StockName,
           d.Id,
           d.status,
+          d.StockCode,
+          d.DateNeeded,
+          d.Purpose,
           d.isDelivered, 
           d.isPending,
           d.QTY as quantity,
@@ -39,7 +42,7 @@ const getPrfList = async () => {
         p.isCancel, p.isReject, p.assignedTo, 
         p.approvedBy, p.approvedBy_Status, 
         p.receivedBy_Status, p.checkedBy_Status, p.departmentCharge, p.projectCode, 
-        d.StockName, d.Id, d.status, d.isDelivered, 
+        d.StockName, d.Id, d.status,  d.StockCode, d.DateNeeded, d.Purpose, d.isDelivered,
         d.DateDelivered, d.isPending, d.QTY, d.UOM, d.dateNeeded,
         d.isCancel
         ORDER BY p.prfDate DESC
@@ -80,6 +83,9 @@ const getPrfListByUser = async (username) => {
           d.UOM as unit,
           d.dateNeeded,
           d.status,
+          d.StockCode,
+          d.DateNeeded,
+          d.Purpose,
           d.isDelivered,
           d.DateDelivered,
           d.isPending,
@@ -93,7 +99,7 @@ const getPrfListByUser = async (username) => {
         p.assignedTo, p.approvedBy, 
         p.approvedBy_Status, p.receivedBy_Status, 
         p.checkedBy_Status, p.departmentCharge, p.projectCode, d.StockName,  
-        d.QTY, d.UOM, d.dateNeeded, d.status, 
+        d.QTY, d.UOM, d.status, d.Purpose, d.StockCode, d.DateNeeded,d.dateNeeded, 
         d.isDelivered, d.DateDelivered,
         d.isPending, d.isCancel
         ORDER BY p.prfDate DESC

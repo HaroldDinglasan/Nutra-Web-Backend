@@ -126,11 +126,20 @@ const updateApprovalById = async (req, res) => {
 
 const populateApprovals = async (req, res) => {
   try {
-    const { userId, checkedBy, approvedBy, receivedBy, secondCheckedBy } = req.body
+    const { userId, checkedBy, approvedBy, receivedBy, secondCheckedBy, secondCheckedByEmail } = req.body
 
     if (!userId) return res.status(400).json({ message: "User ID is required." })
 
-    const result = await populateAssignedApprovals(userId, checkedBy, approvedBy, receivedBy, secondCheckedBy )
+    console.log("[v0] populateApprovals received:", {
+      userId,
+      checkedBy,
+      approvedBy,
+      receivedBy,
+      secondCheckedBy,
+      secondCheckedByEmail
+    })
+
+    const result = await populateAssignedApprovals(userId, checkedBy, approvedBy, receivedBy, secondCheckedBy, secondCheckedByEmail)
 
     res.status(200).json({
       success: true,
