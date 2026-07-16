@@ -4,6 +4,31 @@ const { getPrfWithDepartment } = require("../model/prfDataService")
 const { getEmployeeByOid } = require("../model/employeeService")
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
 
+// Fetch the actual company name from database
+const getCompanyName = async (prfNumber) => {
+  try {
+    const pool = await poolPurchaseRequest
+    
+    const result = await pool
+      .request()
+      .input('prfNo', prfNumber)
+      .query(`
+        SELECT TOP 1 c.CompanyName 
+        FROM PRFTABLE p
+        LEFT JOIN Company c ON p.companyId = c.CompanyId
+        WHERE p.prfNo = @prfNo
+      `)
+    
+    return result.recordset.length > 0 
+      ? result.recordset[0].CompanyName 
+      : 'NutraTech Biopharma, Inc'
+  } catch (error) {
+    console.error("Error fetching company name:", error)
+    return 'NutraTech Biopharma, Inc'
+  }
+}
+
+
 const getApprovalFlowDetails = async (prfId) => {
   try {
     const pool = await poolPurchaseRequest
@@ -241,6 +266,10 @@ const approvePrfController = async (req, res) => {
 
     // Get PRF details early (we will reuse it)
     const prfData = await getPrfWithDepartment(prfId)
+
+    // ✅ ADD THIS LINE - Fetch company name from database
+    const prfCompanyName = await getCompanyName(prfData?.prfNo)
+
     const isWLO = prfData?.departmentCharge === "WLO"
 
     if (!result.success) {
@@ -292,7 +321,7 @@ const approvePrfController = async (req, res) => {
             prfDate: prfData.prfDate,
             preparedBy: prfData.preparedBy,
             projectCode: prfData.projectCode || "Not specified",
-            company: "NutraTech Biopharma, Inc",
+            company: prfCompanyName,
             CheckedByFullName: prfData.secondCheckedBy, // ✅ FIXED
             ApprovedByFullName: prfData.approvedBy,
             ReceivedByFullName: prfData.receivedBy,
@@ -325,7 +354,7 @@ const approvePrfController = async (req, res) => {
               CheckedByFullName: userFullName || "N/A",
               ApprovedByFullName: prfData.approvedBy || "N/A",
               ReceivedByFullName: prfData.receivedBy || "N/A",
-              company: prfData.company || "NutraTech Biopharma, Inc",
+              company: prfCompanyName,
             },
             senderEmail,
             smtpPassword
@@ -344,7 +373,7 @@ const approvePrfController = async (req, res) => {
             prfDate: prfData.prfDate,
             preparedBy: prfData.preparedBy,
             projectCode: prfData.projectCode || "Not specified",
-            company: prfData.company || "NutraTech Biopharma, Inc",
+            company: prfCompanyName,
             CheckedByFullName: prfData.checkedBy || "N/A",
             ApprovedByFullName: prfData.approvedBy || "N/A",
             ReceivedByFullName: prfData.receivedBy || "N/A",
@@ -376,7 +405,7 @@ const approvePrfController = async (req, res) => {
               prfDate: prfData.prfDate,
               preparedBy: prfData.preparedBy,
               projectCode: prfData.projectCode || "Not specified",
-              company: prfData.company || "NutraTech Biopharma, Inc",
+              company: prfCompanyName,
               CheckedByFullName: prfData.checkedBy || "N/A",
               ApprovedByFullName: prfData.approvedBy || "N/A",
               ReceivedByFullName: prfData.receivedBy || "N/A",
@@ -407,7 +436,7 @@ const approvePrfController = async (req, res) => {
               CheckedByFullName: userFullName || "N/A",
               ApprovedByFullName: prfData.approvedBy || "N/A",
               ReceivedByFullName: prfData.receivedBy || "N/A",
-              company: prfData.company || "NutraTech Biopharma, Inc",
+              company: prfCompanyName,
             },
             senderEmail,
             smtpPassword
@@ -426,7 +455,7 @@ const approvePrfController = async (req, res) => {
             prfDate: prfData.prfDate,
             preparedBy: prfData.preparedBy,
             projectCode: prfData.projectCode || "Not specified",
-            company: prfData.company || "NutraTech Biopharma, Inc",
+            company: prfCompanyName,
             CheckedByFullName: prfData.checkedBy || "N/A",
             ApprovedByFullName: prfData.approvedBy || "N/A",
             ReceivedByFullName: prfData.receivedBy || "N/A",
@@ -499,7 +528,7 @@ const approvePrfController = async (req, res) => {
             prfDate: prfData.prfDate,
             preparedBy: prfData.preparedBy,
             projectCode: prfData.projectCode || "Not specified", // Pass departmentCharge to email
-            company: prfData.company || "NutraTech Biopharma, Inc",
+            company: prfCompanyName,
 
             CheckedByFullName: 
               prfData.checkedBy || 
@@ -541,7 +570,7 @@ const approvePrfController = async (req, res) => {
               preparedBy: requestorDetails.name,
               ApprovedByFullName: userFullName || "N/A",
               ReceivedByFullName: receiverDetails.receivedByName || "N/A",
-              company: prfData.company || "NutraTech Biopharma, Inc",
+              company: prfCompanyName,
             },
             senderEmail,
             smtpPassword,
@@ -587,7 +616,7 @@ const approvePrfController = async (req, res) => {
               prfId: prfData.prfId,
               preparedBy: requestorDetails.name,
               ReceivedByFullName: userFullName || "N/A",
-              company: prfData.company || "NutraTech Biopharma, Inc",
+              company: prfCompanyName,
             },
             senderEmail,
             smtpPassword,
@@ -676,7 +705,7 @@ const rejectPrfController = async (req, res) => {
               preparedBy: requestorDetails.name,
               rejectionReason: rejectionReason,
               rejectedByFullName: userFullName || "N/A",
-              company: prfData.company || "NutraTech Biopharma, Inc",
+              company: prfCompanyName,
             },
             senderEmail,
             smtpPassword,
@@ -727,4 +756,5 @@ module.exports = {
   getRequestorEmail,
   getApproverDetails,
   getReceiverDetails,
+  getCompanyName,
 }

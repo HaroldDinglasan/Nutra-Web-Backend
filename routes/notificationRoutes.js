@@ -6,6 +6,7 @@ const { getEmployeeByOid } = require("../model/employeeService")
 const { sendStockAvailabilityNotification } = require("../lib/email-service")
 const { sql, poolPurchaseRequest } = require("../connectionHelper/db")
 const { getStockCheckersFromDB } = require("../model/cgsCheckerService")
+const { getCompanyName } = require("../controller/approveOrRejectPrfController")
   
 const router = express.Router()
 
@@ -44,6 +45,9 @@ router.post("/notifications/send/:approvalId", async (req, res) => {
     const { approvalId } = req.params
     const { prfId, prfNo, preparedBy, company, senderEmail, smtpPassword } = req.body
 
+    // ✅ ADD THIS LINE - Fetch actual company from DB
+    const prfCompanyName = await getCompanyName(prfNo)
+
     // Kinukuha yung approval data
     const approvalData = await getApprovalById(approvalId)
 
@@ -67,7 +71,7 @@ router.post("/notifications/send/:approvalId", async (req, res) => {
       prfDate: null,
       preparedBy: preparedBy || "System User",
       departmentType: "N/A",
-      company: company || "NutraTech Biopharma, Inc",
+      company: prfCompanyName,
       replyTo: senderEmail,
       CheckedByFullName: checkedBy?.FullName || "N/A",
       ApprovedByFullName: approvedBy?.FullName || "N/A",
@@ -116,7 +120,7 @@ router.post("/notifications/send/:approvalId", async (req, res) => {
         preparedBy: dbPrfData.preparedBy,
         departmentId: dbPrfData.departmentId,
         projectCode: dbPrfData.projectCode || "N/A", // <CHANGE> Pass departmentCharge from database
-        company: company || "NutraTech Biopharma, Inc",
+        company: prfCompanyName,
         replyTo: senderEmail,
         CheckedByFullName: checkedBy?.FullName || "N/A",
         ApprovedByFullName: approvedBy?.FullName || "N/A",
@@ -158,6 +162,10 @@ router.post("/notifications/send-direct", async (req, res) => {
       smtpPassword,
     } = req.body
 
+    // ✅ ADD THIS LINE - Fetch actual company from DB
+    const prfCompanyName = await getCompanyName(prfNo)
+    console.log("[v0] ✅ Fetched Company Name for PRF", prfNo, ":", prfCompanyName)
+
     const prfApproverNames = prfId ? await getPrfApproverNames(prfId) : null
 
     // Inclue email at full name
@@ -174,7 +182,7 @@ router.post("/notifications/send-direct", async (req, res) => {
     let prfData = {
       prfNo: prfNo || "New PRF",
       preparedBy: preparedBy || "System User",
-      company: company || "NutraTech Biopharma, Inc",
+      company: prfCompanyName,
       replyTo: senderEmail,
       CheckedByFullName: prfApproverNames?.checkedBy || checkedByName || "N/A", // dinagdag para hindi mawala ang fullnames sa Outlook notification
       ApprovedByFullName: prfApproverNames?.approvedBy || approvedByName || "N/A",
@@ -223,7 +231,7 @@ router.post("/notifications/send-direct", async (req, res) => {
         preparedBy: dbPrfData.preparedBy,
         departmentId: dbPrfData.departmentId,
         projectCode: dbPrfData.projectCode || "N/A", // <CHANGE> Pass departmentCharge from database
-        company: company || "NutraTech Biopharma, Inc",
+        company: prfCompanyName,
         replyTo: senderEmail,
         CheckedByFullName: prfApproverNames?.checkedBy || checkedByName || "N/A", // dinagdag para hindi mawala ang fullnames sa Outlook notification
         ApprovedByFullName: prfApproverNames?.approvedBy || approvedByName || "N/A",

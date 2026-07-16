@@ -142,13 +142,14 @@ const savePrfHeader = async (prfData) => {
       .input("receivedBy", receivedByName)
       .input("departmentCharge", sql.VarChar(100), prfData.departmentCharge || null) 
       .input("projectCode", sql.VarChar(250), prfData.projectCode || null )
+      .input("companyId", sql.Int, prfData.companyId || null)
       .query(`
         INSERT INTO PRFTABLE 
         (prfId, prfNo, prfDate, preparedBy, UserID, departmentId, 
-        checkedBy, secondCheckedBy, approvedBy, receivedBy, departmentCharge, projectCode)
+        checkedBy, secondCheckedBy, approvedBy, receivedBy, departmentCharge, projectCode, companyId)
         VALUES
         (@prfId, @prfNo, @prfDate, @preparedBy, @userId, @departmentId, 
-        @checkedBy, @secondCheckedBy, @approvedBy, @receivedBy, @departmentCharge, @projectCode)
+        @checkedBy, @secondCheckedBy, @approvedBy, @receivedBy, @departmentCharge, @projectCode, @companyId)
       `)
 
     console.log("✅ PRF header saved with approval names and department charge:", {
