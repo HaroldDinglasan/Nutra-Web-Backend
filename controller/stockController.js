@@ -4,8 +4,6 @@ const fetchStocks = async (req, res) => {
   try {
     const { company } = req.query; // ✅ GET COMPANY
 
-    console.log("📌 Company received:", company); // debug
-
     const stocks = await getStocks(company); // ✅ PASS COMPANY
 
     res.json(stocks);
