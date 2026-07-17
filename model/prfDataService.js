@@ -17,6 +17,9 @@ const getPrfById = async (prfId) => {
           preparedBy,
           departmentId,
           projectCode,
+          checkedBy_Status, 
+          approvedBy_Status,  
+          receivedBy_Status,  
           checkedBy,
           approvedBy,
           receivedBy
@@ -49,6 +52,9 @@ const getPrfByNumber = async (prfNo) => {
           preparedBy,
           departmentId,
           projectCode,
+          checkedBy_Status, 
+          approvedBy_Status,  
+          receivedBy_Status,  
           checkedBy,
           approvedBy,
           receivedBy
