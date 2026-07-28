@@ -34,61 +34,45 @@ const markAsReceivedService = async (Id) => {
 // Updates Remarks (Admin side)
 const updateRemarksService = async (id, remarks, partialDeliver, dateDelivered, assignedTo) => {
   try {
-    const pool = await poolPurchaseRequest;
+      const pool = await poolPurchaseRequest;
 
-    // Step 1: Update PRFTABLE_DETAILS (remarks + date + partialDeliver)
-    // Save
-    // - remarks
-    // - partial delivery
-    // - delivery date
-    await pool
+      const result = await pool
       .request()
       .input("Id", sql.Int, id)
       .input("Remarks", sql.VarChar(sql.MAX), remarks)
       .input("PartialDeliver", sql.VarChar(sql.MAX), partialDeliver)
       .input("DateDelivered", sql.DateTime, dateDelivered)
+      .input('AssignedTo', sql.NVarChar(100), assignedTo)
       .query(`
-        UPDATE PRFTABLE_DETAILS
+        UPDATE PRFTABLE_DETAILS 
         SET 
           remarks = @Remarks,
           partialDeliver = @PartialDeliver,
-          DateDelivered = @DateDelivered
+          DateDelivered = @DateDelivered,
+          assignedTo = @AssignedTo
         WHERE Id = @Id
       `);
-
-    // Step 2: Update PRFTABLE (assignedTo)
-    await pool
-      .request()
-      .input("Id", sql.Int, id)
-      .input("AssignedTo", sql.VarChar(100), assignedTo)
-      .query(`
-        UPDATE P
-        SET P.assignedTo = @AssignedTo
-        FROM PRFTABLE P
-        INNER JOIN PRFTABLE_DETAILS D ON P.prfId = D.PrfId
-        WHERE D.Id = @Id
-      `);
-
-    return { success: true };
+    
+    return result.rowsAffected[0];
   } catch (error) {
-    console.error("Error in updateRemarksService:", error);
     throw error;
   }
 };
 
-// Gte Remarks (For displaying in modal)
+// Get Remarks (For displaying in modal)
 const getRemarksByIdService = async (Id) => {
   try {
     const pool = await poolPurchaseRequest;
 
-    // Get remarks, partial delivery, and delivery date
+    // Get remarks, partial delivery, delivery date, and assignedTo
     const result = await pool
       .request()
       .input("Id", sql.Int, Id)
       .query(`SELECT 
         remarks, 
         partialDeliver, 
-        DateDelivered 
+        DateDelivered,
+        assignedTo
       FROM PRFTABLE_DETAILS 
       WHERE Id = @Id
     `);
@@ -106,13 +90,13 @@ const getIsDeliveredListService = async () => {
 
     // JOIN PRFTABLE and PRFTABLE_DETAILS
     // Get all items where isDelivered = 1
-    const result = await pool.request().query(`
+    const result = await pool.request()
+      .query(`
         SELECT 
             P.prfId,
             P.prfNo,
             P.prfDate,
             P.preparedBy,
-            P.assignedTo,
             D.Id,
             D.StockId,
             D.StockCode,
@@ -120,7 +104,8 @@ const getIsDeliveredListService = async () => {
             D.UOM AS unit,
             D.QTY AS quantity,
             D.isDelivered,
-            D.remarks
+            D.remarks,
+            D.assignedTo
         FROM PRFTABLE P
         INNER JOIN PRFTABLE_DETAILS D ON P.prfId = D.PrfId
         WHERE D.isDelivered = 1

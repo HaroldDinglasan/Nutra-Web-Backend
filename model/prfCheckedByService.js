@@ -13,7 +13,8 @@ const getPendingCheckedBy = async (fullName) => {
         p.projectCode,
         d.StockName,
         d.QTY,
-        d.UOM
+        d.UOM,
+        d.Purpose
       FROM PRFTABLE p
       LEFT JOIN PRFTABLE_DETAILS d 
         ON p.prfId = d.PrfId

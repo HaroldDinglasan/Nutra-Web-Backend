@@ -15,7 +15,6 @@ const getPrfList = async () => {
           p.prfDate, 
           p.isCancel AS prfIsCancel,  
           p.isReject,                 
-          p.assignedTo,
           p.approvedBy,
           p.approvedBy_Status,
           p.receivedBy_Status,
@@ -34,16 +33,17 @@ const getPrfList = async () => {
           d.UOM as unit,
           d.dateNeeded,
           d.DateDelivered,
+          d.assignedTo,
           d.isCancel as detailsIsCancel
         FROM PRFTABLE p
         LEFT OUTER JOIN PRFTABLE_DETAILS d ON p.prfId = d.PrfId
         GROUP BY 
         p.prfId, p.prfNo, p.preparedBy, p.prfDate, 
-        p.isCancel, p.isReject, p.assignedTo, 
+        p.isCancel, p.isReject,
         p.approvedBy, p.approvedBy_Status, 
         p.receivedBy_Status, p.checkedBy_Status, p.departmentCharge, p.projectCode, 
         d.StockName, d.Id, d.status,  d.StockCode, d.DateNeeded, d.Purpose, d.isDelivered,
-        d.DateDelivered, d.isPending, d.QTY, d.UOM, d.dateNeeded,
+        d.DateDelivered, d.assignedTo, d.isPending, d.QTY, d.UOM, d.dateNeeded,
         d.isCancel
         ORDER BY p.prfDate DESC
       `)
@@ -71,7 +71,6 @@ const getPrfListByUser = async (username) => {
           p.prfDate, 
           p.isCancel AS prfIsCancel,
           p.isReject,                 
-          p.assignedTo,
           p.approvedBy,
           p.approvedBy_Status,
           p.receivedBy_Status,
@@ -88,6 +87,7 @@ const getPrfListByUser = async (username) => {
           d.Purpose,
           d.isDelivered,
           d.DateDelivered,
+          d.assignedTo,
           d.isPending,
           d.isCancel as detailsIsCancel
         FROM PRFTABLE p
@@ -96,11 +96,11 @@ const getPrfListByUser = async (username) => {
         GROUP BY 
         p.prfId, p.prfNo, p.preparedBy, 
         p.prfDate, p.isCancel, p.isReject, 
-        p.assignedTo, p.approvedBy, 
+        p.approvedBy, 
         p.approvedBy_Status, p.receivedBy_Status, 
-        p.checkedBy_Status, p.departmentCharge, p.projectCode, d.StockName,  
+        p.checkedBy_Status, p.departmentCharge, p.projectCode, d.StockName, d.Id, 
         d.QTY, d.UOM, d.status, d.Purpose, d.StockCode, d.DateNeeded,d.dateNeeded, 
-        d.isDelivered, d.DateDelivered,
+        d.isDelivered, d.DateDelivered, d.assignedTo,
         d.isPending, d.isCancel
         ORDER BY p.prfDate DESC
       `)
@@ -127,15 +127,21 @@ const getPrfByNumber = async (prfId) => {
         SELECT TOP 1 
           prfId,
           prfNo,
+          projectCode,
+          checkedBy,
           preparedBy,
+          approvedBy,
+          receivedBy,
+          checkedByDateTime,
+          approvedByDateTime,
+          receivedByDateTime,
           approvedBy_Status,
           receivedBy_Status,
           checkedBy_Status,
           projectCode,
           prfDate,
           isCancel,
-          isReject,       
-          assignedTo,
+          isReject,
           departmentId
         FROM PRFTABLE
         WHERE prfId = @prfId
@@ -164,6 +170,7 @@ const getPrfByNumber = async (prfId) => {
           Description,
           status,
           remarks,
+          assignedTo,
           isDelivered,
           isPending,
           isCancel
