@@ -24,7 +24,8 @@ const getPendingPrfsForCOO = async (approvedBy) => {
         u.departmentType,
         d.StockName,
         d.QTY,
-        d.UOM
+        d.UOM,
+        d.Purpose
       FROM PRFTABLE p
 
       LEFT JOIN PRFTABLE_DETAILS d 
