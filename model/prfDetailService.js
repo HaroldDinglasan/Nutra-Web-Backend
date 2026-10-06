@@ -15,7 +15,7 @@ const savePRFDetails = async (prfDetailsArray) => {
     table.columns.add("StockCode", sql.VarChar(250), { nullable: false })
     table.columns.add("StockName", sql.VarChar(sql.MAX), { nullable: false })
     table.columns.add("UOM", sql.VarChar(100), { nullable: false })
-    table.columns.add("QTY", sql.Decimal(10, 4), { nullable: false })
+    table.columns.add("QTY", sql.Decimal(18, 4), { nullable: false })
     table.columns.add("DateNeeded", sql.VarChar(250), { nullable: false })
     table.columns.add("Purpose", sql.VarChar(250), { nullable: false })
     table.columns.add("Description", sql.VarChar(250), { nullable: true })
