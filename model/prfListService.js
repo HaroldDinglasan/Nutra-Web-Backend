@@ -138,7 +138,6 @@ const getPrfByNumber = async (prfId) => {
           approvedBy_Status,
           receivedBy_Status,
           checkedBy_Status,
-          projectCode,
           prfDate,
           isCancel,
           isReject,

@@ -141,6 +141,10 @@ const registerEmployee = async (departmentType, departmentId, fullName, username
         deptId = 27
       break
 
+      case "CNC":
+        deptId = 28
+      break
+
       default:
         deptId = null
     }
