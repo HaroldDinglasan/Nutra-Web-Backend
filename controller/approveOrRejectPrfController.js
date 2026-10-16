@@ -690,6 +690,9 @@ const rejectPrfController = async (req, res) => {
           })
         }
 
+        // ADDED 10/06/2026
+        const prfCompanyName = await getCompanyName(prfData.prfNo)
+
         // Get requestor email and name
         const requestorDetails = await getRequestorEmail(prfId)
         if (requestorDetails && requestorDetails.email) {
